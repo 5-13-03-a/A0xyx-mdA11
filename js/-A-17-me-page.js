@@ -13,7 +13,38 @@ function escapeHtml(str){var d=document.createElement('div');d.textContent=str;r
 function getMasks(){
     try{return JSON.parse(localStorage.getItem('ca-user-masks')||'[{"id":"m1","name":"The Architect","bio":"Logical, precise, structural thinker.","active":true}]');}catch(e){return[{id:'m1',name:'The Architect',bio:'',active:true}];}
 }
-function saveMasks(masks){localStorage.setItem('ca-user-masks',JSON.stringify(masks));}
+function saveMasks(masks){
+    // 头像单独存 IndexedDB，localStorage 只存文字数据
+    var slim=masks.map(function(m){
+        var s={id:m.id,name:m.name,bio:m.bio,active:m.active};
+        if(m.avatar&&typeof ChatDB!=='undefined'){
+            ChatDB.open(function(d){
+                if(!d)return;
+                var tx=d.transaction('avatars','readwrite');
+                tx.objectStore('avatars').put({id:'mask_'+m.id,data:m.avatar});
+            });
+        }
+        return s;
+    });
+    localStorage.setItem('ca-user-masks',JSON.stringify(slim));
+}
+function loadMaskAvatars(masks,cb){
+    if(typeof ChatDB==='undefined'){cb(masks);return;}
+    var remaining=masks.length;
+    if(!remaining){cb(masks);return;}
+    masks.forEach(function(m){
+        ChatDB.open(function(d){
+            if(!d){remaining--;if(!remaining)cb(masks);return;}
+            var tx=d.transaction('avatars','readonly');
+            var req=tx.objectStore('avatars').get('mask_'+m.id);
+            req.onsuccess=function(){
+                if(req.result&&req.result.data)m.avatar=req.result.data;
+                remaining--;if(!remaining)cb(masks);
+            };
+            req.onerror=function(){remaining--;if(!remaining)cb(masks);};
+        });
+    });
+}
 
 function injectStyle(){
     if(styleInjected)return;
@@ -163,13 +194,19 @@ function build(){
     document.body.appendChild(el);
 }
 
-function render(){
+function render(masksWithAv){
     var el=document.getElementById('mePageApp');
     if(!el)return;
 
+    if(!masksWithAv){
+        var _m=getMasks();
+        loadMaskAvatars(_m,function(loaded){render(loaded);});
+        return;
+    }
+
     var entities=getEntities();
     var conversations=getConversations();
-    var masks=getMasks();
+    var masks=masksWithAv;
     var activeMask=masks.find(function(m){return m.active;})||masks[0];
 
     // 统计
@@ -280,7 +317,8 @@ function render(){
             var id=maskEl.dataset.id;
             masks.forEach(function(m){m.active=(m.id===id);});
             saveMasks(masks);
-            render();
+            var _m=getMasks();
+            loadMaskAvatars(_m,function(loaded){render(loaded);});
         });
     });
 

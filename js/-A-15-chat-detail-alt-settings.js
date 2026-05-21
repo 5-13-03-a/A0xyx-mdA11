@@ -89,7 +89,22 @@ function renderSettings(entId){
             '<div class="cs-hero-back" id="csBack"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>返回</div>'+
             '<div class="cs-hero-fade"></div>'+
             '<div class="cs-hero-content">'+
-                '<div class="cs-hero-avatar" style="background:'+heroColor+';">'+heroAvHtml+'</div>'+
+                '<div style="position:relative;display:inline-block;cursor:pointer;" id="csHeroAvatarWrap">'+
+                    '<div class="cs-hero-avatar" style="background:'+heroColor+';">'+heroAvHtml+'</div>'+
+                    '<input type="file" id="csHeroAvatarInput" accept="image/*" style="display:none;">'+
+                    '<svg style="position:absolute;bottom:-4px;right:-4px;z-index:3;pointer-events:none;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.3));" width="16" height="14" viewBox="0 0 16 14"><path d="M8 12.5 C8 12.5, 1 8, 1 3.8 C1 1.7, 2.6 0.5, 4.2 0.5 C5.6 0.5, 6.8 1.3, 8 3 C9.2 1.3, 10.4 0.5, 11.8 0.5 C13.4 0.5, 15 1.7, 15 3.8 C15 8, 8 12.5, 8 12.5Z" fill="rgba(255,255,255,0.9)"/></svg>'+
+                    '<svg style="position:absolute;inset:-20px;top:-16px;overflow:visible;pointer-events:none;z-index:2;" width="calc(100% + 40px)" height="calc(100% + 40px)" viewBox="0 0 100 100">'+
+                        '<path d="M50 72 C50 72, 18 54, 18 34 C18 24, 26 17, 35 17 C41 17, 46 20, 50 25 C54 20, 59 17, 65 17 C74 17, 82 24, 82 34 C82 54, 50 72, 50 72Z" stroke="rgba(255,255,255,0.47)" stroke-width="1.6" stroke-dasharray="3 3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'+
+                        '<path d="M82 84 C82 84, 70 76, 70 66 C70 61, 73 57, 77 57 C79.5 57, 81.5 58.5, 82 61 C82.5 58.5, 84.5 57, 87 57 C91 57, 94 61, 94 66 C94 76, 82 84, 82 84Z" stroke="rgba(255,255,255,0.13)" stroke-width="0.9" stroke-dasharray="2 4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'+
+                        '<path d="M108 18 C108 18, 102 14, 102 9.5 C102 7.2, 103.6 5.5, 105.2 5.5 C106.4 5.5, 107.3 6.3, 108 7.5 C108.7 6.3, 109.6 5.5, 110.8 5.5 C112.4 5.5, 114 7.2, 114 9.5 C114 14, 108 18, 108 18Z" stroke="rgba(255,255,255,0.07)" stroke-width="0.7" stroke-dasharray="1.5 3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'+
+                        '<path d="M120 50 C120 50, 116 47, 116 43.5 C116 41.8, 117.1 40.5, 118.3 40.5 C119.1 40.5, 119.7 41, 120 41.8 C120.3 41, 120.9 40.5, 121.7 40.5 C122.9 40.5, 124 41.8, 124 43.5 C124 47, 120 50, 120 50Z" stroke="rgba(255,255,255,0.1)" stroke-width="0.7" stroke-dasharray="1.5 3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'+
+                        '<path d="M98 95 C98 95, 95 93, 95 90.5 C95 89.2, 95.9 88.2, 96.8 88.2 C97.5 88.2, 98 88.7, 98 89.4 C98 88.7, 98.5 88.2, 99.2 88.2 C100.1 88.2, 101 89.2, 101 90.5 C101 93, 98 95, 98 95Z" stroke="rgba(255,255,255,0.06)" stroke-width="0.6" stroke-dasharray="1.5 3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'+
+                        '<path d="M130 72 C130 72, 127.5 70.5, 127.5 68.5 C127.5 67.4, 128.2 66.5, 129 66.5 C129.6 66.5, 130 67, 130 67.6 C130 67, 130.4 66.5, 131 66.5 C131.8 66.5, 132.5 67.4, 132.5 68.5 C132.5 70.5, 130 72, 130 72Z" stroke="rgba(255,255,255,0.05)" stroke-width="0.5" stroke-dasharray="1.5 3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'+
+                        '<path d="M115 32 C115 32, 113 30.5, 113 28.8 C113 27.8, 113.6 27, 114.3 27 C114.8 27, 115 27.5, 115 28 C115 27.5, 115.2 27, 115.7 27 C116.4 27, 117 27.8, 117 28.8 C117 30.5, 115 32, 115 32Z" stroke="rgba(255,255,255,0.08)" stroke-width="0.5" stroke-dasharray="1.5 3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'+
+                        '<path d="M140 40 C140 40, 138 38.8, 138 37.2 C138 36.3, 138.6 35.5, 139.2 35.5 C139.7 35.5, 140 36, 140 36.5 C140 36, 140.3 35.5, 140.8 35.5 C141.4 35.5, 142 36.3, 142 37.2 C142 38.8, 140 40, 140 40Z" stroke="rgba(255,255,255,0.04)" stroke-width="0.5" stroke-dasharray="1.5 3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'+
+                        '<path d="M105 62 C105 62, 103.5 61, 103.5 59.8 C103.5 59.1, 104 58.5, 104.5 58.5 C104.9 58.5, 105 58.9, 105 59.2 C105 58.9, 105.1 58.5, 105.5 58.5 C106 58.5, 106.5 59.1, 106.5 59.8 C106.5 61, 105 62, 105 62Z" stroke="rgba(255,255,255,0.06)" stroke-width="0.5" stroke-dasharray="1.5 3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'+
+                    '</svg>'+
+                '</div>'+
                 '<div class="cs-hero-info"><div class="cs-hero-name">'+escapeHtml(heroName)+'</div><div class="cs-hero-sub">Entity · Settings</div></div>'+
             '</div>'+
         '</div>'+
@@ -300,6 +315,48 @@ function renderSettings(entId){
             '</div>'+
         '</div>'+
 
+        '<div class="cs-ticket light"><div class="cs-ticket-hd"><div class="cs-ticket-label">Time Gap · 时间间隔</div><div class="cs-ticket-num">NO.03.6</div></div>'+
+            '<div class="cs-acc"><div class="cs-acc-hd"><div class="cs-acc-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="cs-acc-info"><div class="cs-acc-name">时间间隔通知</div><div class="cs-acc-desc">Time gap notification style</div></div><svg class="cs-acc-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>'+
+                '<div class="cs-acc-body"><div class="cs-acc-inner">'+
+                '<div style="font-size:10px;color:rgba(26,26,31,0.4);margin-bottom:8px;">消息间隔超过设定时间时，在气泡之间插入提示</div>'+
+                '<div style="font-size:10px;color:rgba(26,26,31,0.4);margin-bottom:10px;">触发阈值 / Threshold</div>'+
+                '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">'+
+                    '<span style="font-size:8px;color:rgba(26,26,31,0.25);flex-shrink:0;">1min</span>'+
+                    '<input type="range" class="cs-slider" id="csTgnThreshold" min="1" max="60" step="1" value="'+(function(){try{return parseInt(localStorage.getItem('ca-tgn-threshold')||'5',10);}catch(e){return 5;}})()+'" style="flex:1;">'+
+                    '<span style="font-size:8px;color:rgba(26,26,31,0.25);flex-shrink:0;">60min</span>'+
+                    '<span id="csTgnThresholdVal" style="font-family:monospace;font-size:12px;font-weight:700;color:#1a1a1f;min-width:40px;text-align:center;">'+(function(){try{return parseInt(localStorage.getItem('ca-tgn-threshold')||'5',10);}catch(e){return 5;}})()+' min</span>'+
+                '</div>'+
+                '<div style="font-size:10px;color:rgba(26,26,31,0.4);margin-bottom:12px;">间隔样式 / Style</div>'+
+                '<div class="cs-tgn-grid" id="csTgnGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:16px;">'+
+                    (function(){
+                        var cur;try{cur=localStorage.getItem('ca-tgn-style')||'off';}catch(e){cur='off';}
+                        var items=[
+                            {id:'off',name:'OFF',icon:'—'},
+                            {id:'a',name:'Dot',icon:'•'},
+                            {id:'b',name:'Wave',icon:'~'},
+                            {id:'c',name:'Hour',icon:'H'},
+                            {id:'d',name:'Ring',icon:'O'},
+                            {id:'e',name:'Film',icon:'|'}
+                        ];
+                        var h='';
+                        items.forEach(function(it){
+                            var isActive=cur===it.id;
+                            h+='<div class="cs-tgn-item'+(isActive?' active':'')+'" data-tgn-style="'+it.id+'" style="padding:10px 4px;border-radius:10px;text-align:center;cursor:pointer;border:0.5px solid rgba(26,26,31,'+(isActive?'0.2':'0.06')+');background:rgba(26,26,31,'+(isActive?'0.06':'0.01')+');transition:all 0.2s;">'+
+                                '<div style="font-size:12px;font-weight:800;margin-bottom:3px;opacity:'+(isActive?'1':'0.35')+';color:#1a1a1f;">'+it.icon+'</div>'+
+                                '<div style="font-size:7px;font-weight:700;color:'+(isActive?'#1a1a1f':'rgba(26,26,31,0.3)')+';letter-spacing:0.3px;">'+it.name+'</div>'+
+                            '</div>';
+                        });
+                        return h;
+                    })()+
+                '</div>'+
+                '<div id="csTgnPreview" style="background:rgba(26,26,31,0.02);border:0.5px solid rgba(26,26,31,0.05);border-radius:14px;padding:14px;min-height:40px;">'+
+                    '<div style="font-size:8px;color:rgba(26,26,31,0.15);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">Preview</div>'+
+                    '<div id="csTgnPreviewArea"></div>'+
+                '</div>'+
+                '</div></div>'+
+            '</div>'+
+        '</div>'+
+
         '<div class="cs-ticket light"><div class="cs-ticket-hd"><div class="cs-ticket-label">Filter · 过滤</div><div class="cs-ticket-num">NO.04</div></div>'+
             '<div class="cs-acc"><div class="cs-acc-hd"><div class="cs-acc-icon"><svg viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></div><div class="cs-acc-info"><div class="cs-acc-name">符号过滤</div><div class="cs-acc-desc">Hide specific characters from view</div></div><svg class="cs-acc-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>'+
                 '<div class="cs-acc-body"><div class="cs-acc-inner">'+
@@ -372,6 +429,40 @@ function bindSettingsEvents(entId){
 
     // 返回
     document.getElementById('csBack').addEventListener('click',closeSettings);
+
+    // 联系人头像更换
+    var heroWrap=document.getElementById('csHeroAvatarWrap');
+    var heroInput=document.getElementById('csHeroAvatarInput');
+    if(heroWrap&&heroInput){
+        heroWrap.addEventListener('click',function(){heroInput.click();});
+        heroInput.addEventListener('change',function(e){
+            var file=e.target.files[0];
+            if(!file)return;
+            var url=URL.createObjectURL(file);
+            var img=new Image();
+            img.onload=function(){
+                var canvas=document.createElement('canvas');
+                var size=200;canvas.width=size;canvas.height=size;
+                var ctx=canvas.getContext('2d');
+                var min=Math.min(img.width,img.height);
+                var sx=(img.width-min)/2,sy=(img.height-min)/2;
+                ctx.drawImage(img,sx,sy,min,min,0,0,size,size);
+                var dataUrl=canvas.toDataURL('image/jpeg',0.7);
+                var entities=window._caEntities||[];
+                var ent=entities.find(function(e){return e.id===entId;});
+                if(!ent)return;
+                ent.avatar=dataUrl;
+                if(typeof ChatDB!=='undefined'&&ChatDB.saveEntity)ChatDB.saveEntity(ent);
+                // 更新 hero 头像显示
+                var av=el.querySelector('.cs-hero-avatar');
+                if(av)av.innerHTML='<img src="'+dataUrl+'" style="width:100%;height:100%;object-fit:cover;">';
+                // 同步聊天室头像
+                window.dispatchEvent(new CustomEvent('cda-settings-changed'));
+                URL.revokeObjectURL(url);
+            };
+            img.src=url;
+        });
+    }
 
     // 手风琴
     el.querySelectorAll('.cs-acc-hd').forEach(function(hd){
@@ -1515,6 +1606,66 @@ function bindSettingsEvents(entId){
         }
         // 初始应用
         (function(){var fs=localStorage.getItem('ca-notif-font-size');if(fs)applyNotifFontSize(fs);})();
+    }
+
+    // 时间间隔样式 - 独立绑定（对应 NO.03.6）
+    var tgnThSlider=document.getElementById('csTgnThreshold');
+    var tgnThVal=document.getElementById('csTgnThresholdVal');
+    if(tgnThSlider){
+        tgnThSlider.addEventListener('input',function(){
+            var v=parseInt(tgnThSlider.value,10);
+            if(tgnThVal)tgnThVal.textContent=v+' min';
+            localStorage.setItem('ca-tgn-threshold',String(v));
+            window.dispatchEvent(new CustomEvent('cda-settings-changed'));
+        });
+    }
+    var tgnGrid=document.getElementById('csTgnGrid');
+    if(tgnGrid){
+        function renderTgnPreview(style){
+            var area=document.getElementById('csTgnPreviewArea');
+            if(!area)return;
+            if(style==='off'){
+                area.innerHTML='<div style="text-align:center;padding:10px 0;font-size:9px;color:rgba(26,26,31,0.2);">已关闭</div>';
+                return;
+            }
+            var html='';
+            if(style==='a'){
+                html='<div style="display:flex;justify-content:center;margin:6px 0;"><div style="display:flex;align-items:center;gap:8px;padding:5px 14px;border-radius:20px;background:rgba(26,26,31,0.02);"><div style="width:5px;height:5px;border-radius:50%;background:rgba(26,26,31,0.15);animation:tgnBreath 2.5s ease-in-out infinite;"></div><span style="font-size:9px;color:rgba(26,26,31,0.2);font-weight:500;">23 min</span></div></div>';
+            }else if(style==='b'){
+                html='<div style="display:flex;justify-content:center;margin:6px 0;"><div style="display:flex;align-items:center;gap:0;width:70%;max-width:200px;height:20px;"><div style="flex:1;height:0.5px;background:linear-gradient(90deg,transparent,rgba(26,26,31,0.08),transparent);"></div><div style="display:flex;align-items:center;gap:6px;padding:0 10px;flex-shrink:0;"><div style="display:flex;align-items:center;gap:1.5px;"><div style="width:1.5px;height:4px;border-radius:1px;background:rgba(26,26,31,0.12);"></div><div style="width:1.5px;height:7px;border-radius:1px;background:rgba(26,26,31,0.12);"></div><div style="width:1.5px;height:10px;border-radius:1px;background:rgba(26,26,31,0.12);"></div><div style="width:1.5px;height:7px;border-radius:1px;background:rgba(26,26,31,0.12);"></div><div style="width:1.5px;height:4px;border-radius:1px;background:rgba(26,26,31,0.12);"></div></div><span style="font-size:8px;color:rgba(26,26,31,0.15);font-weight:600;">1h 30m</span></div><div style="flex:1;height:0.5px;background:linear-gradient(90deg,transparent,rgba(26,26,31,0.08),transparent);"></div></div></div>';
+            }else if(style==='c'){
+                html='<div style="display:flex;justify-content:center;margin:6px 0;"><div style="display:flex;align-items:center;gap:7px;padding:4px 14px;border-radius:16px;background:rgba(26,26,31,0.015);border:0.5px solid rgba(26,26,31,0.04);"><svg viewBox="0 0 24 24" style="width:12px;height:12px;flex-shrink:0;" fill="none" stroke="rgba(26,26,31,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12M6 22h12M7 2v4.2C7 8.4 8.8 10 12 12c-3.2 2-5 3.6-5 5.8V22M17 2v4.2C17 8.4 15.2 10 12 12c3.2 2 5 3.6 5 5.8V22"/></svg><span style="font-size:9px;color:rgba(26,26,31,0.2);font-weight:500;">45 min</span><span style="font-size:8px;color:rgba(26,26,31,0.12);font-family:Courier New,monospace;">· 2:30 PM</span></div></div>';
+            }else if(style==='d'){
+                html='<div style="display:flex;justify-content:center;margin:6px 0;"><div style="position:relative;display:flex;align-items:center;justify-content:center;padding:6px 18px;"><div style="position:absolute;width:50px;height:50px;border-radius:50%;border:0.5px solid rgba(26,26,31,0.06);"></div><div style="position:absolute;width:70px;height:70px;border-radius:50%;border:0.5px solid rgba(26,26,31,0.04);"></div><div style="position:relative;z-index:1;display:flex;align-items:center;gap:6px;"><div style="width:4px;height:4px;border-radius:50%;background:rgba(26,26,31,0.15);"></div><span style="font-size:9px;color:rgba(26,26,31,0.18);font-weight:500;">2h 15m</span><div style="width:4px;height:4px;border-radius:50%;background:rgba(26,26,31,0.15);"></div></div></div></div>';
+            }else if(style==='e'){
+                html='<div style="display:flex;justify-content:center;margin:6px 0;"><div style="display:flex;align-items:center;padding:3px 0;"><div style="display:flex;flex-direction:column;gap:3px;padding:0 4px;"><div style="width:4px;height:3px;border-radius:1px;background:rgba(26,26,31,0.06);"></div><div style="width:4px;height:3px;border-radius:1px;background:rgba(26,26,31,0.06);"></div><div style="width:4px;height:3px;border-radius:1px;background:rgba(26,26,31,0.06);"></div></div><div style="padding:4px 14px;border-top:0.5px solid rgba(26,26,31,0.06);border-bottom:0.5px solid rgba(26,26,31,0.06);display:flex;align-items:center;gap:8px;"><span style="font-family:Courier New,monospace;font-size:7px;font-weight:700;color:rgba(26,26,31,0.12);">▸▸▸</span><span style="font-size:9px;color:rgba(26,26,31,0.18);font-weight:500;font-style:italic;">3h 20m</span><span style="font-family:Courier New,monospace;font-size:7px;color:rgba(26,26,31,0.1);">4:15 PM</span></div><div style="display:flex;flex-direction:column;gap:3px;padding:0 4px;"><div style="width:4px;height:3px;border-radius:1px;background:rgba(26,26,31,0.06);"></div><div style="width:4px;height:3px;border-radius:1px;background:rgba(26,26,31,0.06);"></div><div style="width:4px;height:3px;border-radius:1px;background:rgba(26,26,31,0.06);"></div></div></div></div>';
+            }
+            area.innerHTML=html;
+        }
+
+        tgnGrid.querySelectorAll('.cs-tgn-item').forEach(function(item){
+            item.addEventListener('click',function(e){
+                e.stopPropagation();
+                tgnGrid.querySelectorAll('.cs-tgn-item').forEach(function(i){
+                    i.classList.remove('active');
+                    i.style.borderColor='rgba(26,26,31,0.06)';
+                    i.style.background='rgba(26,26,31,0.01)';
+                    i.querySelector('div:first-child').style.opacity='0.4';
+                    i.querySelector('div:last-child').style.color='rgba(26,26,31,0.3)';
+                });
+                item.classList.add('active');
+                item.style.borderColor='rgba(26,26,31,0.2)';
+                item.style.background='rgba(26,26,31,0.06)';
+                item.querySelector('div:first-child').style.opacity='1';
+                item.querySelector('div:last-child').style.color='#1a1a1f';
+                localStorage.setItem('ca-tgn-style',item.dataset.tgnStyle);
+                renderTgnPreview(item.dataset.tgnStyle);
+                window.dispatchEvent(new CustomEvent('cda-settings-changed'));
+            });
+        });
+
+        var initTgn;try{initTgn=localStorage.getItem('ca-tgn-style')||'off';}catch(e){initTgn='off';}
+        renderTgnPreview(initTgn);
     }
 
     // 符号过滤

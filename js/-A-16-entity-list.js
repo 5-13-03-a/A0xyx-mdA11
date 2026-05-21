@@ -410,12 +410,43 @@ function openEditModal(entId){
     var ent=ents.find(function(e){return e.id===entId;});
     if(!ent)return;
 
+    var color=ent.color||pickColor(ent.name);
+    var initial=getInitial(ent.nickname||ent.name);
+    var currentAvatar=ent.avatar||'';
+
+    // 生成散布五角星 SVG
+    var stars='';
+    var starData=[
+        {x:12,y:14,s:18,o:0.9,r:-15},{x:72,y:8,s:10,o:0.35,r:20},{x:88,y:30,s:14,o:0.7,r:-5},
+        {x:55,y:22,s:8,o:0.5,r:35},{x:30,y:38,s:6,o:0.25,r:10},{x:78,y:52,s:11,o:0.6,r:-25},
+        {x:18,y:58,s:7,o:0.3,r:15},{x:92,y:68,s:9,o:0.55,r:-10},{x:45,y:65,s:5,o:0.2,r:40},
+        {x:62,y:78,s:13,o:0.75,r:-20},{x:-8,y:55,s:16,o:0.85,r:8},{x:25,y:-10,s:13,o:0.65,r:-18},
+        {x:-5,y:20,s:9,o:0.4,r:25},{x:50,y:-8,s:7,o:0.45,r:12}
+    ];
+    starData.forEach(function(d){
+        stars+='<polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" '+
+            'transform="translate('+(d.x*0.92)+','+(d.y*0.72)+') rotate('+d.r+',12,12) scale('+(d.s/24)+')" '+
+            'fill="rgba(26,26,31,'+d.o+')" stroke="rgba(26,26,31,0.12)" stroke-width="0.5"/>';
+    });
+
+    var avHtml=currentAvatar
+        ?'<img src="'+currentAvatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+        :'<span style="font-size:22px;font-weight:700;color:#fff;">'+initial+'</span>';
+
     var modal=document.createElement('div');
     modal.className='el-edit-modal';
     modal.id='elEditModal';
     modal.innerHTML=
-        '<div class="el-edit-card">'+
-            '<div class="el-edit-title">Edit Entity</div>'+
+        '<div class="el-edit-card" style="position:relative;overflow:hidden;">'+
+            // 右上角头像区域
+            '<div id="elEditAvatarZone" style="position:absolute;top:0;right:0;width:100px;height:100px;cursor:pointer;border-radius:0 24px 0 0;">'+
+                '<div style="position:absolute;inset:0;background:#f0f0f2;border-radius:0 24px 0 60px;overflow:hidden;"></div>'+
+                '<svg viewBox="-20 -20 120 92" style="position:absolute;inset:0;width:100%;height:100%;z-index:2;overflow:visible;filter:drop-shadow(0 0 0.5px rgba(255,255,255,0.15));">'+stars+'</svg>'+
+                '<div id="elEditAvatarImg" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;overflow:hidden;">'+avHtml+'</div>'+
+                '<div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:800;color:rgba(26,26,31,0.55);letter-spacing:1px;white-space:nowrap;background:rgba(255,255,255,0.7);padding:2px 8px;border-radius:20px;backdrop-filter:blur(4px);">EDIT</div>'+
+            '</div>'+
+            '<input type="file" id="elEditAvatarInput" accept="image/*" style="display:none;">'+
+            '<div class="el-edit-title" style="padding-right:80px;">Edit Entity</div>'+
             '<div class="el-edit-field">'+
                 '<div class="el-edit-label">Name / 名字</div>'+
                 '<input type="text" class="el-edit-input" id="elEditName" value="'+escapeHtml(ent.name)+'">'+
@@ -436,6 +467,30 @@ function openEditModal(entId){
 
     el.appendChild(modal);
 
+    var newAvatarData='';
+
+    document.getElementById('elEditAvatarZone').addEventListener('click',function(){
+        document.getElementById('elEditAvatarInput').click();
+    });
+
+    document.getElementById('elEditAvatarInput').addEventListener('change',function(e){
+        var file=e.target.files[0];
+        if(!file)return;
+        var fileUrl=URL.createObjectURL(file);
+        var img=new Image();
+        img.onload=function(){
+            var canvas=document.createElement('canvas');
+            var size=200;canvas.width=size;canvas.height=size;
+            var ctx=canvas.getContext('2d');
+            var min=Math.min(img.width,img.height);
+            var sx=(img.width-min)/2,sy=(img.height-min)/2;
+            ctx.drawImage(img,sx,sy,min,min,0,0,size,size);
+            newAvatarData=canvas.toDataURL('image/jpeg',0.7);
+            document.getElementById('elEditAvatarImg').innerHTML='<img src="'+fileUrl+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+        };
+        img.src=fileUrl;
+    });
+
     modal.addEventListener('click',function(e){if(e.target===modal)modal.remove();});
     document.getElementById('elEditCancel').addEventListener('click',function(){modal.remove();});
     document.getElementById('elEditSave').addEventListener('click',function(){
@@ -445,6 +500,7 @@ function openEditModal(entId){
         if(newName)ent.name=newName;
         ent.nickname=newNick||undefined;
         ent.persona=newPersona;
+        if(newAvatarData)ent.avatar=newAvatarData;
         if(typeof ChatDB!=='undefined'&&ChatDB.saveEntity){
             ChatDB.saveEntity(ent);
         }

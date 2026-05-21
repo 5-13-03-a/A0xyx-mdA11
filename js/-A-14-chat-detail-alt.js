@@ -35,6 +35,25 @@ function sendSystemNotif(name,text,avatar){
 
 var built=false;
 var currentEntId=null;
+var _cachedMaskAvatar='';
+
+function loadAndCacheMaskAvatar(cb){
+    var masks;
+    try{masks=JSON.parse(localStorage.getItem('ca-user-masks')||'[]');}catch(e){masks=[];}
+    var active=masks.find(function(m){return m.active;})||masks[0];
+    if(!active){_cachedMaskAvatar='';if(cb)cb();return;}
+    if(typeof ChatDB==='undefined'){_cachedMaskAvatar='';if(cb)cb();return;}
+    ChatDB.open(function(d){
+        if(!d){_cachedMaskAvatar='';if(cb)cb();return;}
+        var tx=d.transaction('avatars','readonly');
+        var req=tx.objectStore('avatars').get('mask_'+active.id);
+        req.onsuccess=function(){
+            _cachedMaskAvatar=(req.result&&req.result.data)?req.result.data:'';
+            if(cb)cb();
+        };
+        req.onerror=function(){_cachedMaskAvatar='';if(cb)cb();};
+    });
+}
 
 function getEntities(){return window._caEntities||[];}
 function getConversations(){return window._caConversations||{};}
@@ -59,6 +78,50 @@ function build(){
             '.chat-detail-alt{overflow:hidden!important;overscroll-behavior:none!important;}'+
             '.chat-detail-alt .cda-messages{overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch;}';
         document.head.appendChild(fixStyle);
+    }
+    if(!document.getElementById('cda-tgn-style')){
+        var tgnS=document.createElement('style');
+        tgnS.id='cda-tgn-style';
+        tgnS.textContent=
+            '.cda-tgn{width:100%;display:flex;justify-content:center;margin:8px 0;flex-shrink:0;}'+
+            '.cda-tgn-a-inner{display:flex;align-items:center;gap:8px;padding:5px 14px;border-radius:20px;background:rgba(26,26,31,0.02);}'+
+            '.cda-tgn-a-dot{width:5px;height:5px;border-radius:50%;background:rgba(26,26,31,0.15);animation:tgnBreath 2.5s ease-in-out infinite;}'+
+            '@keyframes tgnBreath{0%,100%{opacity:0.3;transform:scale(0.8);}50%{opacity:1;transform:scale(1.2);}}'+
+            '.cda-tgn-a-text{font-size:9px;color:rgba(26,26,31,0.2);font-weight:500;letter-spacing:0.3px;}'+
+            '.cda-tgn-b-inner{display:flex;align-items:center;width:70%;max-width:260px;height:20px;}'+
+            '.cda-tgn-b-line{flex:1;height:0.5px;background:linear-gradient(90deg,transparent,rgba(26,26,31,0.08),transparent);}'+
+            '.cda-tgn-b-center{display:flex;align-items:center;gap:6px;padding:0 10px;flex-shrink:0;}'+
+            '.cda-tgn-b-wave{display:flex;align-items:center;gap:1.5px;}'+
+            '.cda-tgn-b-bar{width:1.5px;border-radius:1px;background:rgba(26,26,31,0.12);}'+
+            '.cda-tgn-b-bar:nth-child(1){height:4px;animation:tgnWave 1.8s ease-in-out infinite 0s;}'+
+            '.cda-tgn-b-bar:nth-child(2){height:7px;animation:tgnWave 1.8s ease-in-out infinite 0.15s;}'+
+            '.cda-tgn-b-bar:nth-child(3){height:10px;animation:tgnWave 1.8s ease-in-out infinite 0.3s;}'+
+            '.cda-tgn-b-bar:nth-child(4){height:7px;animation:tgnWave 1.8s ease-in-out infinite 0.45s;}'+
+            '.cda-tgn-b-bar:nth-child(5){height:4px;animation:tgnWave 1.8s ease-in-out infinite 0.6s;}'+
+            '@keyframes tgnWave{0%,100%{transform:scaleY(0.5);opacity:0.3;}50%{transform:scaleY(1);opacity:0.8;}}'+
+            '.cda-tgn-b-label{font-size:8px;color:rgba(26,26,31,0.15);font-weight:600;letter-spacing:0.5px;white-space:nowrap;}'+
+            '.cda-tgn-c-inner{display:flex;align-items:center;gap:7px;padding:4px 14px;border-radius:16px;background:rgba(26,26,31,0.015);border:0.5px solid rgba(26,26,31,0.04);}'+
+            '.cda-tgn-c-icon{width:12px;height:12px;flex-shrink:0;animation:tgnFlip 4s ease-in-out infinite;}'+
+            '@keyframes tgnFlip{0%,40%{transform:rotate(0deg);}50%,90%{transform:rotate(180deg);}100%{transform:rotate(360deg);}}'+
+            '.cda-tgn-c-text{font-size:9px;color:rgba(26,26,31,0.2);font-weight:500;}'+
+            '.cda-tgn-c-gap{font-size:8px;color:rgba(26,26,31,0.12);font-family:"Courier New",monospace;margin-left:2px;}'+
+            '.cda-tgn-d-inner{position:relative;display:flex;align-items:center;justify-content:center;padding:6px 18px;}'+
+            '.cda-tgn-d-ring{position:absolute;border-radius:50%;border:0.5px solid rgba(26,26,31,0.06);pointer-events:none;}'+
+            '.cda-tgn-d-ring.r1{width:50px;height:50px;animation:tgnRipple 3s ease-out infinite;}'+
+            '.cda-tgn-d-ring.r2{width:70px;height:70px;animation:tgnRipple 3s ease-out infinite 1s;}'+
+            '.cda-tgn-d-ring.r3{width:90px;height:90px;animation:tgnRipple 3s ease-out infinite 2s;}'+
+            '@keyframes tgnRipple{0%{transform:scale(0.6);opacity:0.5;}100%{transform:scale(1.3);opacity:0;}}'+
+            '.cda-tgn-d-content{position:relative;z-index:1;display:flex;align-items:center;gap:6px;}'+
+            '.cda-tgn-d-dot{width:4px;height:4px;border-radius:50%;background:rgba(26,26,31,0.15);}'+
+            '.cda-tgn-d-text{font-size:9px;color:rgba(26,26,31,0.18);font-weight:500;letter-spacing:0.3px;}'+
+            '.cda-tgn-e-inner{display:flex;align-items:center;padding:3px 0;}'+
+            '.cda-tgn-e-perf{display:flex;flex-direction:column;gap:3px;padding:0 4px;}'+
+            '.cda-tgn-e-hole{width:4px;height:3px;border-radius:1px;background:rgba(26,26,31,0.06);}'+
+            '.cda-tgn-e-frame{padding:4px 14px;border-top:0.5px solid rgba(26,26,31,0.06);border-bottom:0.5px solid rgba(26,26,31,0.06);display:flex;align-items:center;gap:8px;}'+
+            '.cda-tgn-e-counter{font-family:"Courier New",monospace;font-size:7px;font-weight:700;color:rgba(26,26,31,0.12);letter-spacing:1px;}'+
+            '.cda-tgn-e-text{font-size:9px;color:rgba(26,26,31,0.18);font-weight:500;font-style:italic;}'+
+            '.cda-tgn-e-tc{font-family:"Courier New",monospace;font-size:7px;color:rgba(26,26,31,0.1);letter-spacing:0.5px;}';
+        document.head.appendChild(tgnS);
     }
 }
 
@@ -96,23 +159,13 @@ function renderMessages(){
                         // 当前聊天：内存是最新的（无论增删），保留内存
                         // 只有内存尚未初始化（undefined）时才用 DB（首次加载）
                         if(memMsgs===undefined||memMsgs===null){
-                            // 检查是否有近期删除操作，如果有则不用 DB 数据（等待 DB 写入完成）
-                            var _delTs=window._caDeleteTimestamp&&window._caDeleteTimestamp[k];
-                            if(_delTs&&(Date.now()-_delTs)<5000){
-                                // 近5秒内有删除操作，DB 可能还没写入完成，跳过
-                                window._caConversations[k]=[];
-                            }else{
-                                window._caConversations[k]=dbMsgs;
-                            }
+                            window._caConversations[k]=dbMsgs;
                         }
                         // 如果内存已存在（包括删除后的空数组），永远以内存为准
                     }else{
-                        // 非当前聊天：检查是否有近期删除操作
-                        var _delTs2=window._caDeleteTimestamp&&window._caDeleteTimestamp[k];
-                        if(_delTs2&&(Date.now()-_delTs2)<5000){
-                            // 近5秒内有删除操作，保留内存
-                        }else if(memMsgs!==undefined&&memMsgs!==null&&memMsgs.length<dbMsgs.length){
-                            // 内存比 DB 短，可能是删除结果，保留内存
+                        // 非当前聊天：如果内存已经有数据，以内存为准（可能有删除操作）
+                        if(memMsgs!==undefined&&memMsgs!==null){
+                            // 内存已初始化，保留内存（不被 DB 覆盖）
                         }else{
                             window._caConversations[k]=dbMsgs;
                         }
@@ -396,6 +449,65 @@ function smoothScrollToBottom(area){
     _scrollRaf=requestAnimationFrame(step);
 }
 
+function insertTgnIfNeeded(){
+    var _tgnStyle;try{_tgnStyle=localStorage.getItem('ca-tgn-style')||'off';}catch(e){_tgnStyle='off';}
+    if(_tgnStyle==='off')return;
+    if(!currentEntId)return;
+    var msgs=window._caConversations[currentEntId]||[];
+    if(msgs.length<2)return;
+    var _tgnThreshold=5;
+    try{_tgnThreshold=parseInt(localStorage.getItem('ca-tgn-threshold')||'5',10);}catch(e){_tgnThreshold=5;}
+    if(_tgnThreshold<1)_tgnThreshold=1;
+    // 取最后两条有时间戳的消息
+    var lastTime=null,prevTime=null;
+    for(var i=msgs.length-1;i>=0;i--){
+        if(!msgs[i].time)continue;
+        if(!lastTime){lastTime=msgs[i].time;continue;}
+        if(!prevTime){prevTime=msgs[i].time;break;}
+    }
+    if(!lastTime||!prevTime)return;
+    var d1=new Date(prevTime.replace(/-/g,'/'));
+    var d2=new Date(lastTime.replace(/-/g,'/'));
+    if(isNaN(d1.getTime())||isNaN(d2.getTime()))return;
+    var gapMin=Math.floor(Math.abs(d2.getTime()-d1.getTime())/60000);
+    if(gapMin<_tgnThreshold)return;
+    var area=document.getElementById('cdaMsgArea');
+    if(!area)return;
+    // 检查是否已经有 TGN 在最后几个子元素中（避免重复）
+    var lastChildren=area.querySelectorAll('.cda-tgn');
+    if(lastChildren.length>0){
+        var lastTgn=lastChildren[lastChildren.length-1];
+        var rows=Array.from(area.children);
+        var tgnIdx=rows.indexOf(lastTgn);
+        if(tgnIdx>=rows.length-3)return;
+    }
+    var gapH=Math.floor(gapMin/60);
+    var gapM=gapMin%60;
+    var gapText=String(gapH).padStart(2,'0')+':'+String(gapM).padStart(2,'0')+':00';
+    var tgnHtml='';
+    if(_tgnStyle==='a'){
+        tgnHtml='<div class="cda-tgn cda-tgn-a"><div class="cda-tgn-a-inner"><div class="cda-tgn-a-dot"></div><span class="cda-tgn-a-text">'+gapText+'</span></div></div>';
+    }else if(_tgnStyle==='b'){
+        tgnHtml='<div class="cda-tgn cda-tgn-b"><div class="cda-tgn-b-inner"><div class="cda-tgn-b-line"></div><div class="cda-tgn-b-center"><div class="cda-tgn-b-wave"><div class="cda-tgn-b-bar"></div><div class="cda-tgn-b-bar"></div><div class="cda-tgn-b-bar"></div><div class="cda-tgn-b-bar"></div><div class="cda-tgn-b-bar"></div></div><span class="cda-tgn-b-label">'+gapText+'</span></div><div class="cda-tgn-b-line"></div></div></div>';
+    }else if(_tgnStyle==='c'){
+        tgnHtml='<div class="cda-tgn cda-tgn-c"><div class="cda-tgn-c-inner"><svg class="cda-tgn-c-icon" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,31,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12M6 22h12M7 2v4.2C7 8.4 8.8 10 12 12c-3.2 2-5 3.6-5 5.8V22M17 2v4.2C17 8.4 15.2 10 12 12c3.2 2 5 3.6 5 5.8V22"/></svg><span class="cda-tgn-c-text">'+gapText+'</span></div></div>';
+    }else if(_tgnStyle==='d'){
+        tgnHtml='<div class="cda-tgn cda-tgn-d"><div class="cda-tgn-d-inner"><div class="cda-tgn-d-ring r1"></div><div class="cda-tgn-d-ring r2"></div><div class="cda-tgn-d-ring r3"></div><div class="cda-tgn-d-content"><div class="cda-tgn-d-dot"></div><span class="cda-tgn-d-text">'+gapText+'</span><div class="cda-tgn-d-dot"></div></div></div></div>';
+    }else if(_tgnStyle==='e'){
+        var ffCount=gapMin<60?'▸▸':(gapMin<360?'▸▸▸':'▸▸▸▸');
+        tgnHtml='<div class="cda-tgn cda-tgn-e"><div class="cda-tgn-e-inner"><div class="cda-tgn-e-perf"><div class="cda-tgn-e-hole"></div><div class="cda-tgn-e-hole"></div><div class="cda-tgn-e-hole"></div></div><div class="cda-tgn-e-frame"><span class="cda-tgn-e-counter">'+ffCount+'</span><span class="cda-tgn-e-text">'+gapText+'</span><span class="cda-tgn-e-tc">'+gapText+'</span></div><div class="cda-tgn-e-perf"><div class="cda-tgn-e-hole"></div><div class="cda-tgn-e-hole"></div><div class="cda-tgn-e-hole"></div></div></div></div>';
+    }
+    if(!tgnHtml)return;
+    // 插入到最后一条消息之前（倒数第一个 msg-row 之前）
+    var allRows=area.querySelectorAll('.cda-msg-row,.cda-dc-notif-row,.cda-narr-line');
+    if(allRows.length<2)return;
+    var lastRow=allRows[allRows.length-1];
+    var tgnEl=document.createElement('div');
+    tgnEl.innerHTML=tgnHtml;
+    var tgnNode=tgnEl.firstChild;
+    area.insertBefore(tgnNode,lastRow);
+}
+
 function doRenderMessages(area,ent){
     var conversations=getConversations();
     var msgs=conversations[currentEntId]||[];
@@ -425,9 +537,10 @@ function doRenderMessages(area,ent){
         return str.replace(_filterRegex,' ');
     }
 
-    var html='<div class="cda-msg-time">今天 '+timeNow()+'</div>';
+    var html='';
     var lastType=null;
     var bubbles=[];
+    var _lastTimeLabel='';
 
     // 先把所有消息展开成单独气泡（包括 info 通知，按顺序混合）
     msgs.forEach(function(m,_msgIdx){
@@ -471,7 +584,7 @@ function doRenderMessages(area,ent){
         // 图片消息：渲染为图片气泡
         if(text.indexOf('[IMAGE]')===0){
             var imgSrc=text.substring(7);
-            bubbles.push({type:type,text:'__IMG__',imgSrc:imgSrc,msgIdx:_msgIdx});
+            bubbles.push({type:type,text:'__IMG__',imgSrc:imgSrc,msgIdx:_msgIdx,storedTime:m.time||''});
             return;
         }
 
@@ -482,12 +595,12 @@ function doRenderMessages(area,ent){
                 var tcRaw=text.substring(16,tcEnd);
                 try{
                     var tcData=JSON.parse(tcRaw);
-                    bubbles.push({type:type,text:'__TRANSFER__',tcData:tcData,msgIdx:_msgIdx});
+                    bubbles.push({type:type,text:'__TRANSFER__',tcData:tcData,msgIdx:_msgIdx,storedTime:m.time||''});
                 }catch(ex){
-                    bubbles.push({type:type,text:text,msgIdx:_msgIdx});
+                    bubbles.push({type:type,text:text,msgIdx:_msgIdx,storedTime:m.time||''});
                 }
             }else{
-                bubbles.push({type:type,text:text,msgIdx:_msgIdx});
+                bubbles.push({type:type,text:text,msgIdx:_msgIdx,storedTime:m.time||''});
             }
             return;
         }
@@ -504,12 +617,12 @@ function doRenderMessages(area,ent){
                 if(tcEnd2!==-1){
                     try{
                         var tcData2=JSON.parse(t.substring(16,tcEnd2));
-                        bubbles.push({type:type,text:'__TRANSFER__',tcData:tcData2,msgIdx:_msgIdx});
+                        bubbles.push({type:type,text:'__TRANSFER__',tcData:tcData2,msgIdx:_msgIdx,storedTime:m.time||''});
                     }catch(ex2){
-                        bubbles.push({type:type,text:t,msgIdx:_msgIdx});
+                        bubbles.push({type:type,text:t,msgIdx:_msgIdx,storedTime:m.time||''});
                     }
                 }else{
-                    bubbles.push({type:type,text:t,msgIdx:_msgIdx});
+                    bubbles.push({type:type,text:t,msgIdx:_msgIdx,storedTime:m.time||''});
                 }
                 return;
             }
@@ -520,15 +633,129 @@ function doRenderMessages(area,ent){
                 t=tParts[0].trim();
                 transText=tParts[1]?tParts[1].trim():'';
             }
-            if(t.length>0)bubbles.push({type:type,text:t,trans:transText,msgIdx:_msgIdx});
+            if(t.length>0)bubbles.push({type:type,text:t,trans:transText,msgIdx:_msgIdx,storedTime:m.time||''});
         });
     });
 
     // 只取最后 N 个气泡（可上滑加载更多）
     bubbles=bubbles.slice(-_cdaBubbleLimit);
 
+    // 时间分隔辅助函数
+    function getTimeLabel(timeStr){
+        if(!timeStr)return '';
+        // timeStr 格式: "2025-01-20 14:30"
+        var parts=timeStr.split(' ');
+        var datePart=parts[0]||'';
+        var timePart=parts[1]||'';
+        if(!datePart)return '';
+        var today=new Date();
+        var todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+        var yesterday=new Date(today);
+        yesterday.setDate(yesterday.getDate()-1);
+        var yesterdayStr=yesterday.getFullYear()+'-'+String(yesterday.getMonth()+1).padStart(2,'0')+'-'+String(yesterday.getDate()).padStart(2,'0');
+        var dayLabel='';
+        if(datePart===todayStr){dayLabel='今天';}
+        else if(datePart===yesterdayStr){dayLabel='昨天';}
+        else{
+            var dp=datePart.split('-');
+            dayLabel=(parseInt(dp[1],10)||'')+'月'+(parseInt(dp[2],10)||'')+'日';
+        }
+        if(!timePart)return dayLabel;
+        var hp=timePart.split(':');
+        var h=parseInt(hp[0],10)||0;
+        var m=hp[1]||'00';
+        var ampm=h>=12?'下午':'上午';
+        var h12=h%12||12;
+        return dayLabel+' '+ampm+' '+h12+':'+m;
+    }
+
     // 渲染
     bubbles.forEach(function(b,i){
+        // 插入时间间隔通知（根据 ca-tgn-style 配置）
+        var _bTime=b.storedTime||'';
+        if(!_bTime&&b.msgIdx!==undefined){
+            var _origMsg=msgs[b.msgIdx];
+            if(_origMsg&&_origMsg.time)_bTime=_origMsg.time;
+        }
+        if(_bTime&&_lastTimeLabel){
+            var _tgnStyle;try{_tgnStyle=localStorage.getItem('ca-tgn-style')||'off';}catch(e){_tgnStyle='off';}
+            if(_tgnStyle!=='off'){
+                // 计算两条消息之间的时间差
+                var _prevDate=new Date(_lastTimeLabel.replace(/-/g,'/'));
+                var _curDate=new Date(_bTime.replace(/-/g,'/'));
+                if(!isNaN(_prevDate.getTime())&&!isNaN(_curDate.getTime())){
+                    var _gapMin=Math.floor(Math.abs(_curDate.getTime()-_prevDate.getTime())/60000);
+                    var _tgnThreshold=5;
+                    try{_tgnThreshold=parseInt(localStorage.getItem('ca-tgn-threshold')||'5',10);}catch(e){_tgnThreshold=5;}
+                    if(_tgnThreshold<1)_tgnThreshold=1;
+                    if(_gapMin>=_tgnThreshold){
+                        // 生成时间显示文字
+                        var _gapText='';
+                        var _gapCode='';
+                        var _gapH2=Math.floor(_gapMin/60);
+                        var _gapM2=_gapMin%60;
+                        var _gapS2=0;
+                        _gapText=String(_gapH2).padStart(2,'0')+':'+String(_gapM2).padStart(2,'0')+':'+String(_gapS2).padStart(2,'0');
+                        _gapCode=_gapText;
+                        // 用实际时间显示（从目标消息的时间戳提取时分）
+                        var _gapTimeStr='';
+                        var _curParts=_bTime.split(' ');
+                        if(_curParts[1]){
+                            var _curHp=_curParts[1].split(':');
+                            var _curH=parseInt(_curHp[0],10)||0;
+                            var _curM=_curHp[1]||'00';
+                            var _ampm=_curH>=12?'PM':'AM';
+                            var _h12=_curH%12||12;
+                            _gapTimeStr=_h12+':'+_curM+' '+_ampm;
+                        }
+                        // 快进符号（用于胶片帧样式）
+                        var _ffCount=_gapMin<60?'▸▸':(_gapMin<360?'▸▸▸':'▸▸▸▸');
+
+                        var _tgnHtml='';
+                        if(_tgnStyle==='a'){
+                            _tgnHtml='<div class="cda-tgn cda-tgn-a"><div class="cda-tgn-a-inner"><div class="cda-tgn-a-dot"></div><span class="cda-tgn-a-text">'+_gapText+'</span></div></div>';
+                        }else if(_tgnStyle==='b'){
+                            _tgnHtml='<div class="cda-tgn cda-tgn-b"><div class="cda-tgn-b-inner"><div class="cda-tgn-b-line"></div><div class="cda-tgn-b-center"><div class="cda-tgn-b-wave"><div class="cda-tgn-b-bar"></div><div class="cda-tgn-b-bar"></div><div class="cda-tgn-b-bar"></div><div class="cda-tgn-b-bar"></div><div class="cda-tgn-b-bar"></div></div><span class="cda-tgn-b-label">'+_gapText+'</span></div><div class="cda-tgn-b-line"></div></div></div>';
+                        }else if(_tgnStyle==='c'){
+                            _tgnHtml='<div class="cda-tgn cda-tgn-c"><div class="cda-tgn-c-inner"><svg class="cda-tgn-c-icon" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,31,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12M6 22h12M7 2v4.2C7 8.4 8.8 10 12 12c-3.2 2-5 3.6-5 5.8V22M17 2v4.2C17 8.4 15.2 10 12 12c3.2 2 5 3.6 5 5.8V22"/></svg><span class="cda-tgn-c-text">'+_gapText+'</span><span class="cda-tgn-c-gap">'+(_gapTimeStr?' · '+_gapTimeStr:'')+'</span></div></div>';
+                        }else if(_tgnStyle==='d'){
+                            _tgnHtml='<div class="cda-tgn cda-tgn-d"><div class="cda-tgn-d-inner"><div class="cda-tgn-d-ring r1"></div><div class="cda-tgn-d-ring r2"></div><div class="cda-tgn-d-ring r3"></div><div class="cda-tgn-d-content"><div class="cda-tgn-d-dot"></div><span class="cda-tgn-d-text">'+_gapText+'</span><div class="cda-tgn-d-dot"></div></div></div></div>';
+                        }else if(_tgnStyle==='e'){
+                            _tgnHtml='<div class="cda-tgn cda-tgn-e"><div class="cda-tgn-e-inner"><div class="cda-tgn-e-perf"><div class="cda-tgn-e-hole"></div><div class="cda-tgn-e-hole"></div><div class="cda-tgn-e-hole"></div></div><div class="cda-tgn-e-frame"><span class="cda-tgn-e-counter">'+_ffCount+'</span><span class="cda-tgn-e-text">'+_gapText+'</span><span class="cda-tgn-e-tc">'+(_gapTimeStr||_gapCode)+'</span></div><div class="cda-tgn-e-perf"><div class="cda-tgn-e-hole"></div><div class="cda-tgn-e-hole"></div><div class="cda-tgn-e-hole"></div></div></div></div>';
+                        }
+                        if(_tgnHtml)html+=_tgnHtml;
+                    }
+                }
+            }
+        }
+        _lastTimeLabel=_bTime;
+
+        // 心声卡片
+        if(b.type==='__sysinfo__'&&b.text&&b.text.indexOf('[HV_CARD::')===0){
+            var _hvEndIdx=b.text.indexOf('::HV_END]');
+            var _hvRaw=_hvEndIdx!==-1?b.text.substring(10,_hvEndIdx):b.text.substring(10,b.text.length-1);
+            try{
+                var _hvData=JSON.parse(_hvRaw);
+                if(typeof window.buildHvCardHtml==='function'){
+                    // 确保卡片样式已注入
+                    if(!document.getElementById('hvc-style')){
+                        var _hvcS=document.createElement('style');_hvcS.id='hvc-style';
+                        _hvcS.textContent='.hvc-notif-row{justify-content:center!important;}.hvc-card{width:270px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.07),0 1px 3px rgba(0,0,0,0.04);}.hvc-header{background:#1a1a1f;padding:8px 14px;display:flex;align-items:center;gap:7px;position:relative;overflow:hidden;}.hvc-header-deco{position:absolute;right:-4px;top:-10px;font-size:38px;font-weight:900;font-style:italic;-webkit-text-stroke:1px rgba(255,255,255,0.07);color:transparent;pointer-events:none;transform:rotate(6deg);letter-spacing:-1px;user-select:none;line-height:1;}.hvc-header-icon svg{width:10px;height:10px;fill:rgba(255,255,255,0.4);flex-shrink:0;}.hvc-header-label{font-size:8px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.35);text-transform:uppercase;flex:1;position:relative;z-index:1;}.hvc-header-time{font-size:8px;color:rgba(255,255,255,0.2);font-family:monospace;position:relative;z-index:1;}.hvc-body{padding:13px 16px 11px;position:relative;overflow:hidden;}.hvc-bubbles{position:absolute;inset:0;pointer-events:none;width:100%;height:100%;}.hvc-bubbles circle{fill:rgba(0,0,0,0.035);}.hvc-deco-you{position:absolute;right:6px;top:-6px;font-size:46px;font-weight:900;font-style:italic;-webkit-text-stroke:1px rgba(0,0,0,0.06);color:transparent;pointer-events:none;transform:rotate(10deg);user-select:none;line-height:1;}.hvc-deco-me{position:absolute;left:4px;bottom:24px;font-size:36px;font-weight:900;font-style:italic;-webkit-text-stroke:1px rgba(0,0,0,0.05);color:transparent;pointer-events:none;transform:rotate(-7deg);user-select:none;line-height:1;}.hvc-text{font-size:13px;font-weight:400;color:rgba(0,0,0,0.72);line-height:1.65;position:relative;z-index:1;margin-bottom:8px;}.hvc-ul{border-bottom:1.5px dashed rgba(0,0,0,0.2);padding-bottom:1px;}.hvc-mood-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:50px;background:rgba(0,0,0,0.04);border:0.5px solid rgba(0,0,0,0.07);font-size:9px;color:rgba(0,0,0,0.35);margin-bottom:8px;position:relative;z-index:1;}.hvc-mood-tag svg{width:9px;height:9px;stroke:rgba(0,0,0,0.3);fill:none;stroke-width:2;stroke-linecap:round;}.hvc-from{display:flex;align-items:center;gap:6px;padding-top:8px;border-top:0.5px solid rgba(0,0,0,0.05);position:relative;z-index:1;}.hvc-av{width:18px;height:18px;border-radius:50%;background:#1a1a1f;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:rgba(255,255,255,0.6);flex-shrink:0;overflow:hidden;}.hvc-av img{width:100%;height:100%;object-fit:cover;}.hvc-from-name{font-size:10px;font-weight:600;color:rgba(0,0,0,0.35);}.hvc-from-sub{font-size:8px;color:rgba(0,0,0,0.2);}';
+                        document.head.appendChild(_hvcS);
+                    }
+                    var _hvMasks;try{_hvMasks=JSON.parse(localStorage.getItem('ca-user-masks')||'[]');}catch(e){_hvMasks=[];}
+                    var _hvMask=_hvMasks.find(function(m){return m.active;})||_hvMasks[0];
+                    var _hvUInfo={name:_hvMask&&_hvMask.name?_hvMask.name:'我',initial:_hvMask&&_hvMask.name?_hvMask.name.charAt(0):'我',avatar:_cachedMaskAvatar||''};
+                    html+='<div class="cda-dc-notif-row hvc-notif-row" data-msg-idx="'+b.msgIdx+'">'+
+                        window.buildHvCardHtml(_hvData,_hvData.styleIdx||0,_hvUInfo)+
+                    '</div>';
+                }
+            }catch(ex){console.error('[HV_CARD parse error]',ex,_hvRaw);}
+            _lastTimeLabel=_bTime;
+            lastType=null;
+            return;
+        }
+
         // 系统通知（收款等）
         if(b.type==='__sysinfo__'){
             var _isNarrNotif=(b.text==='♪♫'||b.text==='♪');
@@ -640,9 +867,10 @@ function doRenderMessages(area,ent){
             var userMasks;
             try{userMasks=JSON.parse(localStorage.getItem('ca-user-masks')||'[]');}catch(ex){userMasks=[];}
             var activeMask=userMasks.find(function(m){return m.active;});
+            var _sentAv=_cachedMaskAvatar;
             if(isLast){
-                if(activeMask&&activeMask.avatar){
-                    sentAvHtml='<div class="cda-msg-av cda-sent-av"><img src="'+activeMask.avatar+'"></div>';
+                if(_sentAv){
+                    sentAvHtml='<div class="cda-msg-av cda-sent-av"><img src="'+_sentAv+'"></div>';
                 }else{
                     var myInitial=activeMask&&activeMask.name?activeMask.name.charAt(0).toUpperCase():'U';
                     sentAvHtml='<div class="cda-msg-av cda-sent-av" style="background:#4a4a4f;">'+myInitial+'</div>';
@@ -951,6 +1179,8 @@ function addUserMsg(text){
 
     // 直接追加用户消息到 DOM（不全量重渲染）
     appendUserBubbles(text,sendText);
+    // 追加后检查是否需要插入时间间隔通知
+    insertTgnIfNeeded();
 }
 
 function addTyping(){
@@ -987,7 +1217,7 @@ function removeTyping(){
     if(row&&row.parentNode)row.parentNode.removeChild(row);
 }
 
-function addAiMsg(text){
+function addAiMsg(text,callback){
     if(!currentEntId)return;
     if(!window._caConversations)window._caConversations={};
     if(!window._caConversations[currentEntId])window._caConversations[currentEntId]=[];
@@ -1047,7 +1277,7 @@ function addAiMsg(text){
     }
 
     // 直接追加气泡到 DOM 并逐条播放动画（不全量重渲染）
-    appendAiBubbles(fullText);
+    appendAiBubbles(fullText,function(){insertTgnIfNeeded();});
 
     // 检查自动总结阈值
     var _autoThreshold=parseInt(localStorage.getItem('ca-auto-sum-threshold-'+currentEntId)||'0',10);
@@ -1237,8 +1467,9 @@ function appendUserBubbles(displayText,rawText){
             var userMasks;
             try{userMasks=JSON.parse(localStorage.getItem('ca-user-masks')||'[]');}catch(ex){userMasks=[];}
             var activeMask=userMasks.find(function(m){return m.active;});
-            if(activeMask&&activeMask.avatar){
-                sentAvHtml='<div class="cda-msg-av cda-sent-av"><img src="'+activeMask.avatar+'"></div>';
+            var _sentAv2=_cachedMaskAvatar;
+            if(_sentAv2){
+                sentAvHtml='<div class="cda-msg-av cda-sent-av"><img src="'+_sentAv2+'"></div>';
             }else{
                 var myInitial=activeMask&&activeMask.name?activeMask.name.charAt(0).toUpperCase():'U';
                 sentAvHtml='<div class="cda-msg-av cda-sent-av" style="background:#4a4a4f;">'+myInitial+'</div>';
@@ -1786,40 +2017,40 @@ function triggerAI(){
     // 记忆轮数（与旧系统共用 ca-mem-rounds-{id}）
     var memRounds=parseInt(localStorage.getItem('ca-mem-rounds-14-'+currentEntId)||localStorage.getItem('ca-mem-rounds-'+currentEntId)||'30',10);
     var apiMessages=[{role:'system',content:systemPrompt}];
-    msgs.slice(-memRounds).forEach(function(m){
-        if(m.role==='info'){
-            var _aiVis=m.ai_visible!==undefined?m.ai_visible:true;
-            if(_aiVis){
-                var _infoText=m.text;
-                // 过滤无意义的系统通知（旁白开关、收款、备注修改）
-                if(_infoText==='♪♫'||_infoText==='♪'||_infoText.indexOf('已领取')!==-1||_infoText.indexOf('将备注修改')!==-1||_infoText.indexOf('旁白模式')!==-1)return;
-                // 拆分 LAZY 代发内容
-                var _lazyContent='';
-                if(_infoText.indexOf('|||LAZY|||')!==-1){
-                    var _lParts=_infoText.split('|||LAZY|||');
-                    _infoText=_lParts[0].trim();
-                    _lazyContent=_lParts[1]?_lParts[1].trim():'';
+            msgs.slice(-memRounds).forEach(function(m){
+            if(m.role==='info'){
+                var _aiVis=m.ai_visible!==undefined?m.ai_visible:true;
+                if(_aiVis){
+                    var _infoText=m.text;
+                    // 过滤无意义的系统通知
+                    if(_infoText==='♪♫'||_infoText==='♪'||_infoText.indexOf('已领取')!==-1||_infoText.indexOf('将备注修改')!==-1||_infoText.indexOf('旁白模式')!==-1)return;
+                    // 拆分 LAZY 代发内容
+                    var _lazyContent='';
+                    if(_infoText.indexOf('|||LAZY|||')!==-1){
+                        var _lParts=_infoText.split('|||LAZY|||');
+                        _infoText=_lParts[0].trim();
+                        _lazyContent=_lParts[1]?_lParts[1].trim():'';
+                    }
+                    // 导演指令：去掉前缀标记，只保留实际内容
+                    var _dcClean=_infoText.replace(/^::(NARRATOR_INJECT|ACTION_INJECT|CORRECTION_OVERRIDE)::\{[^}]*\}::\s*/,'');
+                    var _dcPrefix='';
+                    if(_infoText.indexOf('::NARRATOR_INJECT::')===0){
+                        _dcPrefix='[⚠ STAGE DIRECTION — MANDATORY: You MUST reflect the following scene description in your very next reply. Do NOT ignore, skip, or summarize it. Weave it naturally into your response.]\n';
+                    }else if(_infoText.indexOf('::ACTION_INJECT::')===0){
+                        _dcPrefix='[⚠ ACTION — MANDATORY: The user\'s character just performed the following action. You MUST react to it directly in your next reply. Do NOT ignore it.]\n';
+                    }else if(_infoText.indexOf('::CORRECTION_OVERRIDE::')===0){
+                        _dcPrefix='[⚠ CORRECTION — MANDATORY: Your previous response had an issue. Starting from your next reply, silently comply with the following correction. Do NOT apologize or mention this correction.]\n';
+                    }else{
+                        _dcPrefix='[⚠ DIRECTIVE — MANDATORY: You must follow this instruction immediately.]\n';
+                    }
+                    apiMessages.push({role:'user',content:_dcPrefix+_dcClean});
+                    apiMessages.push({role:'assistant',content:'Understood. I will comply immediately.'});
+                    if(_lazyContent){
+                        apiMessages.push({role:'user',content:_lazyContent});
+                    }
                 }
-                // 导演指令：去掉前缀标记，只保留实际内容
-                var _dcClean=_infoText.replace(/^::(NARRATOR_INJECT|ACTION_INJECT|CORRECTION_OVERRIDE)::\{[^}]*\}::\s*/,'');
-                var _dcPrefix='';
-                if(_infoText.indexOf('::NARRATOR_INJECT::')===0){
-                    _dcPrefix='[⚠ STAGE DIRECTION — 你必须在下一条回复中体现以下场景描述，不要忽略]\n';
-                }else if(_infoText.indexOf('::ACTION_INJECT::')===0){
-                    _dcPrefix='[⚠ ACTION — 用户的角色刚刚做了以下动作，你必须对此做出反应，不要忽略]\n';
-                }else if(_infoText.indexOf('::CORRECTION_OVERRIDE::')===0){
-                    _dcPrefix='[⚠ CORRECTION — 你之前的回复有问题，从下一条开始必须按以下要求修正，不要道歉不要提及]\n';
-                }else{
-                    _dcPrefix='[⚠ DIRECTIVE — 你必须遵守以下指令]\n';
-                }
-                apiMessages.push({role:'user',content:_dcPrefix+_dcClean});
-                apiMessages.push({role:'assistant',content:'明白，我会遵守。'});
-                if(_lazyContent){
-                    apiMessages.push({role:'user',content:_lazyContent});
-                }
+                return;
             }
-            return;
-        }
         var msgText=m.text||'';
         var imgIdx=msgText.indexOf('[IMAGE]');
         if(imgIdx!==-1){
@@ -1944,7 +2175,10 @@ function triggerAI(){
             reply=reply.replace(/\[INVITE_MEET:[^\]]*\]/gi,'');
             reply=reply.replace(/\[CURRENT TIME[^\]]*\]/gi,'');
             reply=reply.replace(/\[SYS_TIME[^\]]*\]/gi,'');
-            addAiMsg(reply);
+            addAiMsg(reply,function(){
+        var _tgnStyle;try{_tgnStyle=localStorage.getItem('ca-tgn-style')||'off';}catch(e){_tgnStyle='off';}
+        if(_tgnStyle!=='off')renderMessagesNoAnim();
+    });
             // 系统通知
             var _notifEnts=getEntities();
             var _notifEnt=_notifEnts.find(function(e){return e.id===currentEntId;});
@@ -1967,6 +2201,172 @@ function triggerAI(){
             syncAnimating=false;
         }
     });
+}
+
+function getInputBarHtml(){
+    var style=localStorage.getItem('ca-inputbar-style')||'default';
+    if(style==='a'){
+        return '<div class="cda-input-bar cda-bar-a" style="background:transparent!important;border-top:none!important;padding:8px 12px!important;">'+
+            '<div style="display:flex;align-items:center;gap:10px;width:100%;padding:8px 8px 8px 16px;background:#fff;border-radius:50px;border:0.5px solid rgba(26,26,31,0.06);box-shadow:0 4px 20px rgba(0,0,0,0.06),0 0 0 0.5px rgba(26,26,31,0.03);">'+
+                '<textarea class="cda-input-field" rows="1" placeholder="Message..." id="cdaInput" style="flex:1;border:none;outline:none;font-size:13px;color:#1a1a1f;background:transparent;padding:6px 0;resize:none;"></textarea>'+
+                '<div style="display:flex;align-items:center;gap:6px;">'+
+                    '<div id="cdaPlusBtn" style="width:34px;height:34px;border-radius:50%;background:rgba(26,26,31,0.04);display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:rgba(26,26,31,0.4);fill:none;stroke-width:2;stroke-linecap:round;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>'+
+                    '<button class="cda-input-invoke" id="cdaInvoke" style="width:34px;height:34px;border-radius:50%;border:none;background:rgba(26,26,31,0.04);display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:rgba(26,26,31,0.4);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button>'+
+                    '<button class="cda-input-send" id="cdaSend" style="width:34px;height:34px;border-radius:50%;border:none;background:#1a1a1f;display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>'+
+                '</div>'+
+            '</div>'+
+        '</div>';
+    }else if(style==='b'){
+        return '<div class="cda-input-bar cda-bar-b" style="background:transparent!important;border-top:none!important;padding:6px 8px!important;">'+
+            '<div style="display:flex;align-items:center;gap:0;width:100%;background:#1a1a1f;border-radius:14px;padding:6px;overflow:hidden;">'+
+                '<div style="display:flex;align-items:center;gap:8px;padding:0 10px;">'+
+                    '<svg id="cdaPlusBtn" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:rgba(255,255,255,0.4);fill:none;stroke-width:1.8;stroke-linecap:round;cursor:pointer;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'+
+                '</div>'+
+                '<textarea class="cda-input-field" rows="1" placeholder="Type something..." id="cdaInput" style="flex:1;border:none;outline:none;font-size:13px;color:#fff;background:rgba(255,255,255,0.06);border-radius:50px;padding:9px 14px;margin:0 6px;resize:none;"></textarea>'+
+                '<button class="cda-input-invoke" id="cdaInvoke" style="width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;cursor:pointer;margin-right:4px;"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button>'+
+                '<button class="cda-input-send" id="cdaSend" style="width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>'+
+            '</div>'+
+        '</div>';
+    }else if(style==='c'){
+        return '<div class="cda-input-bar cda-bar-c" style="background:transparent!important;border-top:none!important;padding:8px 12px!important;gap:8px!important;">'+
+            '<div style="flex:1;display:flex;align-items:center;gap:8px;background:rgba(26,26,31,0.03);border:0.5px solid rgba(26,26,31,0.06);border-radius:22px;padding:4px 4px 4px 14px;">'+
+                '<textarea class="cda-input-field" rows="1" placeholder="Say something..." id="cdaInput" style="flex:1;border:none;outline:none;font-size:13px;color:#1a1a1f;background:transparent;padding:6px 0;resize:none;"></textarea>'+
+                '<div id="cdaPlusBtn" style="width:28px;height:28px;border-radius:50%;background:rgba(26,26,31,0.04);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:rgba(26,26,31,0.35);fill:none;stroke-width:2;stroke-linecap:round;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>'+
+                '<button class="cda-input-invoke" id="cdaInvoke" style="width:28px;height:28px;border-radius:50%;border:none;background:rgba(26,26,31,0.04);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:rgba(26,26,31,0.35);fill:none;stroke-width:2;stroke-linecap:round;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button>'+
+            '</div>'+
+            '<button class="cda-input-send" id="cdaSend" style="width:42px;height:42px;border-radius:50%;border:none;background:#1a1a1f;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;box-shadow:0 4px 12px rgba(26,26,31,0.2);"><svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>'+
+        '</div>';
+    }else if(style==='d'){
+        return '<div class="cda-input-bar cda-bar-d" style="background:transparent!important;border-top:none!important;padding:8px 16px!important;gap:12px!important;">'+
+            '<div id="cdaPlusBtn" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:rgba(26,26,31,0.25);fill:none;stroke-width:2;stroke-linecap:round;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>'+
+            '<div style="flex:1;">'+
+                '<textarea class="cda-input-field" rows="1" placeholder="Message" id="cdaInput" style="width:100%;border:none;outline:none;font-size:13px;color:#1a1a1f;background:transparent;padding:8px 0;border-bottom:1px solid rgba(26,26,31,0.06);resize:none;"></textarea>'+
+            '</div>'+
+            '<button class="cda-input-invoke" id="cdaInvoke" style="width:28px;height:28px;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;opacity:0.4;"><svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:#1a1a1f;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button>'+
+            '<button class="cda-input-send" id="cdaSend" style="width:28px;height:28px;border-radius:8px;border:none;background:#1a1a1f;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><polyline points="9 18 15 12 9 6"/></svg></button>'+
+        '</div>';
+    }else if(style==='e'){
+        return '<div class="cda-input-bar cda-bar-e" style="background:transparent!important;border-top:none!important;padding:6px 12px!important;flex-direction:column!important;gap:6px!important;align-items:stretch!important;">'+
+            '<div style="display:flex;align-items:center;gap:6px;padding:0 4px;">'+
+                '<div id="cdaPlusBtn" style="width:26px;height:26px;border-radius:50%;background:rgba(26,26,31,0.03);border:0.5px solid rgba(26,26,31,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:rgba(26,26,31,0.35);fill:none;stroke-width:2;stroke-linecap:round;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>'+
+                '<div style="width:26px;height:26px;border-radius:50%;background:rgba(26,26,31,0.03);border:0.5px solid rgba(26,26,31,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:rgba(26,26,31,0.35);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M3 17l5-4 4 3 4-5 5 6"/></svg></div>'+
+                '<div style="width:26px;height:26px;border-radius:50%;background:rgba(26,26,31,0.03);border:0.5px solid rgba(26,26,31,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:rgba(26,26,31,0.35);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>'+
+            '</div>'+
+            '<div style="display:flex;align-items:center;gap:8px;">'+
+                '<textarea class="cda-input-field" rows="1" placeholder="Write a message..." id="cdaInput" style="flex:1;border:none;outline:none;font-size:13px;color:#1a1a1f;background:rgba(26,26,31,0.02);border-radius:20px;padding:10px 16px;border:0.5px solid rgba(26,26,31,0.05);resize:none;"></textarea>'+
+                '<button class="cda-input-invoke" id="cdaInvoke" style="width:38px;height:38px;border-radius:12px;border:none;background:rgba(26,26,31,0.04);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:rgba(26,26,31,0.4);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button>'+
+                '<button class="cda-input-send" id="cdaSend" style="width:38px;height:38px;border-radius:12px;border:none;background:#1a1a1f;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>'+
+            '</div>'+
+        '</div>';
+    }
+    // default - 原始样式
+    return '<div class="cda-input-bar">'+
+        '<div class="cda-input-left" style="transform:translateY(-5px);">'+
+        '<svg id="cdaPlusBtn" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" stroke="rgba(26,26,31,0.05)" stroke-width="0.6" stroke-dasharray="2.5 2"/><circle cx="12" cy="12" r="8.5" stroke="rgba(26,26,31,0.1)" stroke-width="0.6"/><rect x="10.5" y="7.5" width="3" height="9" rx="1.5" fill="#1a1a1f"/><rect x="7.5" y="10.5" width="9" height="3" rx="1.5" fill="#1a1a1f"/><circle cx="17.8" cy="6.2" r="1.4" fill="#1a1a1f"/><circle cx="6.2" cy="6.2" r="1" fill="rgba(26,26,31,0.6)"/></svg>'+
+            '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="13" r="10.5" stroke="rgba(26,26,31,0.05)" stroke-width="0.6" stroke-dasharray="2 2.5"/><rect x="3" y="7.5" width="18" height="12.5" rx="3.5" fill="rgba(26,26,31,0.025)"/><rect x="3" y="7.5" width="18" height="12.5" rx="3.5" stroke="rgba(26,26,31,0.1)" stroke-width="0.6"/><circle cx="12" cy="13.5" r="4" stroke="rgba(26,26,31,0.8)" stroke-width="1"/><circle cx="12" cy="13.5" r="1.8" fill="#1a1a1f"/><rect x="16.5" y="8.8" width="2.5" height="1.5" rx="0.75" fill="#1a1a1f"/></svg>'+
+        '</div>'+
+        '<textarea class="cda-input-field" rows="1" placeholder="Message" id="cdaInput"></textarea>'+
+        '<button class="cda-input-invoke" id="cdaInvoke"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" stroke="rgba(26,26,31,0.05)" stroke-width="0.6" stroke-dasharray="2 2.5"/><circle cx="12" cy="12" r="6.5" stroke="rgba(26,26,31,0.3)" stroke-width="0.7"/><path d="M12 5.5a6.5 6.5 0 0 1 6.5 6.5" stroke="#1a1a1f" stroke-width="1.8" stroke-linecap="round"/><path d="M5.5 12a6.5 6.5 0 0 1 6.5-6.5" stroke="rgba(26,26,31,0.5)" stroke-width="1.2" stroke-linecap="round"/><circle cx="12" cy="12" r="2.5" fill="#1a1a1f"/><circle cx="18.5" cy="12" r="1.3" fill="#1a1a1f"/><circle cx="12" cy="5.5" r="1" fill="rgba(26,26,31,0.5)"/></svg></button>'+
+        '<button class="cda-input-send" id="cdaSend"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" stroke="rgba(255,255,255,0.15)" stroke-width="0.8" stroke-dasharray="2.5 2"/><circle cx="12" cy="12" r="8" stroke="rgba(255,255,255,0.25)" stroke-width="0.8"/><circle cx="12" cy="12" r="8" fill="rgba(255,255,255,0.05)"/><path d="M4 13l16-8-5 15-3.5-5.5L4 13z" fill="#fff"/><path d="M11.5 14.5L20 5" stroke="rgba(0,0,0,0.25)" stroke-width="0.6"/><circle cx="20" cy="5" r="1.5" fill="#fff"/><circle cx="4" cy="13" r="1.2" fill="rgba(255,255,255,0.7)"/><circle cx="15" cy="20" r="0.9" fill="rgba(255,255,255,0.45)"/></svg></button>'+
+    '</div>';
+}
+
+function getTopbarHtml(dispName,initial,color,ent,entities){
+    var tbStyle=localStorage.getItem('ca-topbar-style')||'default';
+    var avPhoto=ent.avatar
+        ?'<img src="'+ent.avatar+'" style="width:100%;height:100%;object-fit:cover;">'
+        :initial;
+    var stackPhoto=ent.avatar?'<img src="'+ent.avatar+'" style="width:100%;height:100%;object-fit:cover;">':'<span style="font-size:13px;">'+initial+'</span>';
+    var entCount=entities.length;
+    var dispNameEsc=escapeHtml(dispName);
+
+    if(tbStyle==='b'){
+        return '<div class="cda-topbar" style="border-radius:0;padding-top:0;background:#1a1a1f;">'+
+            '<div style="display:flex;align-items:center;padding:12px 16px;padding-top:52px;background:rgba(26,26,31,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);position:relative;overflow:hidden;">'+
+                '<div style="position:absolute;top:0;bottom:0;left:0;width:10px;background:repeating-linear-gradient(to bottom,transparent 0px,transparent 3px,rgba(255,255,255,0.08) 3px,rgba(255,255,255,0.08) 5px,transparent 5px,transparent 8px);"></div>'+
+                '<div style="position:absolute;top:0;bottom:0;right:0;width:10px;background:repeating-linear-gradient(to bottom,transparent 0px,transparent 3px,rgba(255,255,255,0.08) 3px,rgba(255,255,255,0.08) 5px,transparent 5px,transparent 8px);"></div>'+
+                '<div class="cda-topbar-back" id="cdaBack" style="margin-left:14px;"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:rgba(255,255,255,0.5);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><polyline points="15 18 9 12 15 6"/></svg></div>'+
+                '<div style="flex:1;display:flex;align-items:center;justify-content:center;gap:10px;">'+
+                    '<div style="width:32px;height:32px;border-radius:4px;background:'+(ent.avatar?'transparent':color)+';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;border:1px solid rgba(255,255,255,0.15);overflow:hidden;">'+avPhoto+'</div>'+
+                    '<div style="display:flex;flex-direction:column;">'+
+                        '<div style="font-size:12px;font-weight:700;color:#fff;letter-spacing:0.3px;">'+dispNameEsc+'</div>'+
+                        '<div style="font-size:8px;color:rgba(255,255,255,0.3);font-family:\'Courier New\',monospace;letter-spacing:1px;">ONLINE · SCENE 01</div>'+
+                    '</div>'+
+                '</div>'+
+                '<div style="margin-right:14px;display:flex;gap:10px;" id="cdaTopbarRight">'+
+                    '<div class="cda-topbar-circle" style="background:transparent;"><svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:rgba(255,255,255,0.4);fill:none;stroke-width:2;stroke-linecap:round;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72"/></svg></div>'+
+                    '<div class="cda-topbar-circle" style="background:transparent;"><svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:rgba(255,255,255,0.4);fill:none;stroke-width:2;stroke-linecap:round;"><circle cx="12" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg></div>'+
+                '</div>'+
+            '</div>'+
+        '</div>';
+    }else if(tbStyle==='c'){
+        return '<div class="cda-topbar" style="background:transparent;box-shadow:none;border:none;border-radius:0;padding-top:26px;">'+
+            '<div style="padding:12px 16px;">'+
+                '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fff;border-radius:50px;box-shadow:0 4px 20px rgba(0,0,0,0.06),0 0 0 0.5px rgba(26,26,31,0.04);">'+
+                    '<div class="cda-topbar-back" id="cdaBack" style="width:28px;height:28px;border-radius:50%;background:rgba(26,26,31,0.04);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:rgba(26,26,31,0.4);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><polyline points="15 18 9 12 15 6"/></svg></div>'+
+                    '<div style="width:34px;height:34px;border-radius:50%;background:'+(ent.avatar?'transparent':color)+';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;position:relative;overflow:hidden;">'+avPhoto+'<div style="position:absolute;bottom:0;right:0;width:8px;height:8px;border-radius:50%;background:#4ade80;border:2px solid #fff;"></div></div>'+
+                    '<div style="flex:1;min-width:0;">'+
+                        '<div style="font-size:13px;font-weight:700;color:#1a1a1f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+dispNameEsc+'</div>'+
+                        '<div style="font-size:9px;color:rgba(26,26,31,0.3);font-weight:500;">online · typing...</div>'+
+                    '</div>'+
+                    '<div style="display:flex;gap:6px;" id="cdaTopbarRight">'+
+                        '<div class="cda-topbar-circle"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:rgba(26,26,31,0.4);fill:none;stroke-width:2;stroke-linecap:round;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72"/></svg></div>'+
+                        '<div class="cda-topbar-circle"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:rgba(26,26,31,0.4);fill:none;stroke-width:2;stroke-linecap:round;"><circle cx="12" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg></div>'+
+                    '</div>'+
+                '</div>'+
+            '</div>'+
+        '</div>';
+    }else if(tbStyle==='d'){
+        return '<div class="cda-topbar" style="background:transparent;box-shadow:none;border:none;border-radius:0;padding-top:26px;">'+
+            '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;">'+
+                '<div class="cda-topbar-back" id="cdaBack" style="cursor:pointer;"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:rgba(26,26,31,0.3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polyline points="15 18 9 12 15 6"/></svg></div>'+
+                '<div style="display:flex;align-items:center;gap:8px;">'+
+                    '<div style="width:28px;height:28px;border-radius:50%;background:'+(ent.avatar?'transparent':color)+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;overflow:hidden;">'+avPhoto+'</div>'+
+                    '<div style="font-size:14px;font-weight:700;color:#1a1a1f;letter-spacing:-0.3px;">'+dispNameEsc+'</div>'+
+                '</div>'+
+                '<div id="cdaTopbarRight" style="display:flex;">'+
+                    '<div class="cda-topbar-circle" style="background:transparent;"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:rgba(26,26,31,0.3);fill:none;stroke-width:2;stroke-linecap:round;"><circle cx="12" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg></div>'+
+                '</div>'+
+            '</div>'+
+        '</div>';
+    }else if(tbStyle==='e'){
+        return '<div class="cda-topbar" style="border-radius:0 0 20px 20px;padding-top:26px;">'+
+            '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px 14px;background:rgba(255,255,255,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:0.5px solid rgba(26,26,31,0.05);border-radius:0 0 20px 20px;">'+
+                '<div class="cda-topbar-back" id="cdaBack" style="display:flex;align-items:center;gap:3px;cursor:pointer;"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:rgba(26,26,31,0.35);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><polyline points="15 18 9 12 15 6"/></svg><span style="font-size:12px;color:rgba(26,26,31,0.25);font-weight:600;">'+entCount+'</span></div>'+
+                '<div style="display:flex;align-items:center;gap:10px;">'+
+                    '<div style="position:relative;width:40px;height:48px;background:#fff;border-radius:2px;padding:3px 3px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);transform:rotate(-2deg);">'+
+                        '<div style="width:100%;height:100%;background:'+(ent.avatar?'transparent':color)+';border-radius:1px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;overflow:hidden;">'+avPhoto+'</div>'+
+                        '<div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:14px;height:6px;background:#1a1a1f;border-radius:1px;"></div>'+
+                    '</div>'+
+                    '<div style="display:flex;flex-direction:column;gap:1px;">'+
+                        '<div style="font-size:13px;font-weight:700;color:#1a1a1f;">'+dispNameEsc+'</div>'+
+                        '<div style="font-size:7px;font-weight:800;letter-spacing:1.5px;color:rgba(26,26,31,0.15);text-transform:uppercase;">· ENTITY ·</div>'+
+                    '</div>'+
+                '</div>'+
+                '<div style="display:flex;gap:6px;" id="cdaTopbarRight">'+
+                    '<div class="cda-topbar-circle" style="border-radius:8px;"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:rgba(26,26,31,0.4);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72"/></svg></div>'+
+                    '<div class="cda-topbar-circle" style="border-radius:8px;"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:rgba(26,26,31,0.4);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><circle cx="12" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg></div>'+
+                '</div>'+
+            '</div>'+
+        '</div>';
+    }
+    // default - Style A 经典拍立得
+    return '<div class="cda-topbar"><div class="cda-topbar-main">'+
+        '<div class="cda-topbar-back" id="cdaBack"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg><span>'+entCount+'</span></div>'+
+        '<div class="cda-topbar-center">'+
+            '<div class="cda-polaroid-stack">'+
+                '<div class="cda-polaroid back-2"><div class="cda-polaroid-photo" style="background:'+color+';">'+stackPhoto+'</div></div>'+
+                '<div class="cda-polaroid back-1"><div class="cda-polaroid-photo" style="background:'+color+';">'+stackPhoto+'</div></div>'+
+                '<div class="cda-polaroid front" data-label="online"><div class="cda-polaroid-photo" style="background:'+color+';">'+avPhoto+'</div><div class="cda-clip"></div></div>'+
+                '<div class="cda-heart"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="rgba(26,26,31,0.06)" stroke="rgba(26,26,31,0.12)" stroke-width="0.5"/><polygon points="12,5 9,8 12,12" fill="#1a1a1f"/><polygon points="12,5 15,8 12,12" fill="rgba(26,26,31,0.6)"/><polygon points="9,8 6,10 9,13 12,12" fill="rgba(26,26,31,0.35)"/><polygon points="15,8 18,10 15,13 12,12" fill="rgba(26,26,31,0.2)"/><polygon points="12,12 9,13 12,17" fill="rgba(26,26,31,0.5)"/><polygon points="12,12 15,13 12,17" fill="rgba(26,26,31,0.12)"/><polygon points="12,17 10,15 8,17 12,21" fill="rgba(26,26,31,0.08)"/><polygon points="12,17 14,15 16,17 12,21" fill="rgba(26,26,31,0.04)"/><circle cx="7" cy="5" r="1.2" fill="#1a1a1f"/><circle cx="17" cy="5" r="0.8" fill="rgba(26,26,31,0.4)"/><circle cx="4" cy="9" r="0.5" fill="rgba(26,26,31,0.15)"/><circle cx="20" cy="9" r="0.4" fill="rgba(26,26,31,0.1)"/></svg></div>'+
+            '</div>'+
+            '<div class="cda-topbar-name">'+dispNameEsc+'</div>'+
+        '</div>'+
+        '<div class="cda-topbar-right" id="cdaTopbarRight">'+
+            '<div class="cda-topbar-circle"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" stroke="rgba(26,26,31,0.05)" stroke-width="0.6" stroke-dasharray="2 2.5"/><path d="M19.5 15.5v2.5a2.5 2.5 0 0 1-2.5 2.5c-7.2 0-13-5.8-13-13A2.5 2.5 0 0 1 7 5h2.5c.5 0 1 .3 1.1.8l.8 2.5c.1.4 0 .9-.3 1.2l-1.2 1.2a10.5 10.5 0 0 0 5 5l1.2-1.2c.3-.3.8-.4 1.2-.3l2.5.8c.5.1.8.6.8 1.1z" fill="rgba(26,26,31,0.025)" stroke="rgba(26,26,31,0.3)" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M14.5 4.5c3 0 5.5 2 6 5" stroke="#1a1a1f" stroke-width="1.5" stroke-linecap="round"/><path d="M15 7.5c1.5 0 3 1 3.5 3" stroke="rgba(26,26,31,0.5)" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="5" r="1.8" fill="#1a1a1f"/><circle cx="19.5" cy="15.5" r="1.5" fill="rgba(26,26,31,0.7)"/></svg></div>'+
+            '<div class="cda-topbar-circle"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" stroke="rgba(26,26,31,0.05)" stroke-width="0.6" stroke-dasharray="2 2.5"/><circle cx="12" cy="12" r="8" stroke="rgba(26,26,31,0.1)" stroke-width="0.6"/><circle cx="6.5" cy="12" r="2" fill="#1a1a1f"/><circle cx="12" cy="12" r="2" fill="rgba(26,26,31,0.6)"/><circle cx="17.5" cy="12" r="2" fill="rgba(26,26,31,0.3)"/></svg></div>'+
+        '</div>'+
+    '</div></div>';
 }
 
 function render(entId){
@@ -2038,12 +2438,6 @@ function render(entId){
     var initial=getInitial(dispName);
     var color=ent.color||'#1c1c1e';
 
-    var avPhoto=ent.avatar
-        ?'<img src="'+ent.avatar+'" style="width:100%;height:100%;object-fit:cover;">'
-        :initial;
-
-    // 拍立得三张都是当前联系人
-    var stackPhoto=ent.avatar?'<img src="'+ent.avatar+'" style="width:100%;height:100%;object-fit:cover;">':'<span style="font-size:13px;">'+initial+'</span>';
 
     // 注入导演卡片样式（只注一次）
     if(!document.getElementById('cda-dc-style')){
@@ -2120,41 +2514,19 @@ function render(entId){
     }
 
     el.innerHTML=
-        '<div class="cda-topbar"><div class="cda-topbar-main">'+
-            '<div class="cda-topbar-back" id="cdaBack"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg><span>'+entities.length+'</span></div>'+
-            '<div class="cda-topbar-center">'+
-                '<div class="cda-polaroid-stack">'+
-                    '<div class="cda-polaroid back-2"><div class="cda-polaroid-photo" style="background:'+color+';">'+stackPhoto+'</div></div>'+
-                    '<div class="cda-polaroid back-1"><div class="cda-polaroid-photo" style="background:'+color+';">'+stackPhoto+'</div></div>'+
-                    '<div class="cda-polaroid front" data-label="online"><div class="cda-polaroid-photo" style="background:'+color+';">'+avPhoto+'</div><div class="cda-clip"></div></div>'+
-                    '<div class="cda-heart"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="rgba(26,26,31,0.06)" stroke="rgba(26,26,31,0.12)" stroke-width="0.5"/><polygon points="12,5 9,8 12,12" fill="#1a1a1f"/><polygon points="12,5 15,8 12,12" fill="rgba(26,26,31,0.6)"/><polygon points="9,8 6,10 9,13 12,12" fill="rgba(26,26,31,0.35)"/><polygon points="15,8 18,10 15,13 12,12" fill="rgba(26,26,31,0.2)"/><polygon points="12,12 9,13 12,17" fill="rgba(26,26,31,0.5)"/><polygon points="12,12 15,13 12,17" fill="rgba(26,26,31,0.12)"/><polygon points="12,17 10,15 8,17 12,21" fill="rgba(26,26,31,0.08)"/><polygon points="12,17 14,15 16,17 12,21" fill="rgba(26,26,31,0.04)"/><circle cx="7" cy="5" r="1.2" fill="#1a1a1f"/><circle cx="17" cy="5" r="0.8" fill="rgba(26,26,31,0.4)"/><circle cx="4" cy="9" r="0.5" fill="rgba(26,26,31,0.15)"/><circle cx="20" cy="9" r="0.4" fill="rgba(26,26,31,0.1)"/></svg></div>'+
-                '</div>'+
-                '<div class="cda-topbar-name">'+escapeHtml(dispName)+'</div>'+
-            '</div>'+
-            '<div class="cda-topbar-right">'+
-                '<div class="cda-topbar-circle"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" stroke="rgba(26,26,31,0.05)" stroke-width="0.6" stroke-dasharray="2 2.5"/><path d="M19.5 15.5v2.5a2.5 2.5 0 0 1-2.5 2.5c-7.2 0-13-5.8-13-13A2.5 2.5 0 0 1 7 5h2.5c.5 0 1 .3 1.1.8l.8 2.5c.1.4 0 .9-.3 1.2l-1.2 1.2a10.5 10.5 0 0 0 5 5l1.2-1.2c.3-.3.8-.4 1.2-.3l2.5.8c.5.1.8.6.8 1.1z" fill="rgba(26,26,31,0.025)" stroke="rgba(26,26,31,0.3)" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M14.5 4.5c3 0 5.5 2 6 5" stroke="#1a1a1f" stroke-width="1.5" stroke-linecap="round"/><path d="M15 7.5c1.5 0 3 1 3.5 3" stroke="rgba(26,26,31,0.5)" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="5" r="1.8" fill="#1a1a1f"/><circle cx="19.5" cy="15.5" r="1.5" fill="rgba(26,26,31,0.7)"/></svg></div>'+
-                '<div class="cda-topbar-circle"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" stroke="rgba(26,26,31,0.05)" stroke-width="0.6" stroke-dasharray="2 2.5"/><circle cx="12" cy="12" r="8" stroke="rgba(26,26,31,0.1)" stroke-width="0.6"/><circle cx="6.5" cy="12" r="2" fill="#1a1a1f"/><circle cx="12" cy="12" r="2" fill="rgba(26,26,31,0.6)"/><circle cx="17.5" cy="12" r="2" fill="rgba(26,26,31,0.3)"/></svg></div>'+
-            '</div>'+
-        '</div></div>'+
+        getTopbarHtml(dispName,initial,color,ent,entities)+
 
         '<div class="cda-messages" id="cdaMsgArea"></div>'+
 
-        '<div class="cda-input-bar">'+
-            '<div class="cda-input-left">'+
-            '<svg id="cdaPlusBtn" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" stroke="rgba(26,26,31,0.05)" stroke-width="0.6" stroke-dasharray="2.5 2"/><circle cx="12" cy="12" r="8.5" stroke="rgba(26,26,31,0.1)" stroke-width="0.6"/><rect x="10.5" y="7.5" width="3" height="9" rx="1.5" fill="#1a1a1f"/><rect x="7.5" y="10.5" width="9" height="3" rx="1.5" fill="#1a1a1f"/><circle cx="17.8" cy="6.2" r="1.4" fill="#1a1a1f"/><circle cx="6.2" cy="6.2" r="1" fill="rgba(26,26,31,0.6)"/></svg>'+
-                '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="13" r="10.5" stroke="rgba(26,26,31,0.05)" stroke-width="0.6" stroke-dasharray="2 2.5"/><rect x="3" y="7.5" width="18" height="12.5" rx="3.5" fill="rgba(26,26,31,0.025)"/><rect x="3" y="7.5" width="18" height="12.5" rx="3.5" stroke="rgba(26,26,31,0.1)" stroke-width="0.6"/><circle cx="12" cy="13.5" r="4" stroke="rgba(26,26,31,0.8)" stroke-width="1"/><circle cx="12" cy="13.5" r="1.8" fill="#1a1a1f"/><rect x="16.5" y="8.8" width="2.5" height="1.5" rx="0.75" fill="#1a1a1f"/></svg>'+
-            '</div>'+
-            '<textarea class="cda-input-field" rows="1" placeholder="Message" id="cdaInput"></textarea>'+
-            '<button class="cda-input-invoke" id="cdaInvoke"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" stroke="rgba(26,26,31,0.05)" stroke-width="0.6" stroke-dasharray="2 2.5"/><circle cx="12" cy="12" r="6.5" stroke="rgba(26,26,31,0.3)" stroke-width="0.7"/><path d="M12 5.5a6.5 6.5 0 0 1 6.5 6.5" stroke="#1a1a1f" stroke-width="1.8" stroke-linecap="round"/><path d="M5.5 12a6.5 6.5 0 0 1 6.5-6.5" stroke="rgba(26,26,31,0.5)" stroke-width="1.2" stroke-linecap="round"/><circle cx="12" cy="12" r="2.5" fill="#1a1a1f"/><circle cx="18.5" cy="12" r="1.3" fill="#1a1a1f"/><circle cx="12" cy="5.5" r="1" fill="rgba(26,26,31,0.5)"/></svg></button>'+
-            '<button class="cda-input-send" id="cdaSend"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" stroke="rgba(255,255,255,0.15)" stroke-width="0.8" stroke-dasharray="2.5 2"/><circle cx="12" cy="12" r="8" stroke="rgba(255,255,255,0.25)" stroke-width="0.8"/><circle cx="12" cy="12" r="8" fill="rgba(255,255,255,0.05)"/><path d="M4 13l16-8-5 15-3.5-5.5L4 13z" fill="#fff"/><path d="M11.5 14.5L20 5" stroke="rgba(0,0,0,0.25)" stroke-width="0.6"/><circle cx="20" cy="5" r="1.5" fill="#fff"/><circle cx="4" cy="13" r="1.2" fill="rgba(255,255,255,0.7)"/><circle cx="15" cy="20" r="0.9" fill="rgba(255,255,255,0.45)"/></svg></button>'+
-        '</div>';
+        getInputBarHtml();
 
     // 绑定事件
     document.getElementById('cdaBack').addEventListener('click',closeDetailAlt);
 
-    // 三个点按钮 → 打开设置
-    var topCircles=el.querySelectorAll('.cda-topbar-circle');
-    if(topCircles.length>=2){
+    // 三个点按钮 → 打开设置（取顶栏右侧容器内最后一个 circle）
+    var topRight=document.getElementById('cdaTopbarRight')||el;
+    var topCircles=topRight.querySelectorAll('.cda-topbar-circle');
+    if(topCircles.length>=1){
         topCircles[topCircles.length-1].addEventListener('click',function(){
             if(typeof window.openCdaSettings==='function')window.openCdaSettings(currentEntId);
         });
@@ -2344,8 +2716,10 @@ function render(entId){
         }
     })();
 
-    // 唯一渲染入口
-    renderMessages();
+    // 预加载面具头像后再渲染
+    loadAndCacheMaskAvatar(function(){
+        renderMessages();
+    });
 
     // 全局事件委托：翻译气泡点击展开
     var _cdaTrArea=document.getElementById('cdaMsgArea');
@@ -2494,6 +2868,13 @@ function render(entId){
         document.head.appendChild(s);
     }
 
+    function applyInputBarStyle(style){
+        var styleId='cda-inputbar-override';
+        var existing=document.getElementById(styleId);
+        if(existing)existing.parentNode.removeChild(existing);
+    }
+    (function(){applyInputBarStyle();})();
+
     window.bindPlusMenu=function(el,ent){
         injectPlusStyle();
 
@@ -2523,11 +2904,13 @@ function render(entId){
         cap.className='cda-cap-overlay';
         cap.id='cdaCapMenu';
         cap.innerHTML=
-            '<div class="cda-cap-hd"><span class="cda-cap-hd-l">More · 04</span><span class="cda-cap-hd-r">Stack</span></div>'+
+            '<div class="cda-cap-hd"><span class="cda-cap-hd-l">More · 05</span><span class="cda-cap-hd-r">Stack</span></div>'+
             '<div class="cda-cap-grid">'+
                 '<div class="cda-cap-cell" data-fn="location"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="cda-cap-cell-label">位置</span></div>'+
                 '<div class="cda-cap-cell" data-fn="transfer"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span class="cda-cap-cell-label">转账</span></div>'+
                 '<div class="cda-cap-cell" data-fn="api"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span class="cda-cap-cell-label">API</span></div>'+
+                '<div class="cda-cap-cell" data-fn="inputbar"><svg viewBox="0 0 24 24"><rect x="2" y="15" width="20" height="6" rx="3"/><line x1="6" y1="18" x2="14" y2="18"/><circle cx="18" cy="18" r="1.5"/></svg><span class="cda-cap-cell-label">底栏</span></div>'+
+                '<div class="cda-cap-cell" data-fn="topbar"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="6" rx="3"/><circle cx="6" cy="6" r="1.5"/><line x1="10" y1="6" x2="18" y2="6"/></svg><span class="cda-cap-cell-label">顶栏</span></div>'+
             '</div>';
         el.appendChild(cap);
 
@@ -2648,12 +3031,33 @@ function render(entId){
                     showTransferModal(ent);
                     break;
                 case 'api':
-                    // 打开 API 配置
                     if(typeof openApiModal==='function'){
                         openApiModal();
                     }else{
                         showToast('API 切换 · 开发中');
                     }
+                    break;
+                case 'inputbar':
+                    var _barStyles=['default','a','b','c','d','e'];
+                    var _curBar=localStorage.getItem('ca-inputbar-style')||'default';
+                    var _nextIdx=(_barStyles.indexOf(_curBar)+1)%_barStyles.length;
+                    var _nextBar=_barStyles[_nextIdx];
+                    localStorage.setItem('ca-inputbar-style',_nextBar);
+                    if(typeof window.openChatDetailAlt==='function'){
+                        window.openChatDetailAlt(currentEntId);
+                    }
+                    showToast('底栏: '+(_nextBar==='default'?'Default':_nextBar.toUpperCase()));
+                    break;
+                case 'topbar':
+                    var _tbStyles=['default','b','c','d','e'];
+                    var _curTb=localStorage.getItem('ca-topbar-style')||'default';
+                    var _nextTbIdx=(_tbStyles.indexOf(_curTb)+1)%_tbStyles.length;
+                    var _nextTb=_tbStyles[_nextTbIdx];
+                    localStorage.setItem('ca-topbar-style',_nextTb);
+                    if(typeof window.openChatDetailAlt==='function'){
+                        window.openChatDetailAlt(currentEntId);
+                    }
+                    showToast('顶栏: '+(_nextTb==='default'?'Default':_nextTb.toUpperCase()));
                     break;
             }
         }
@@ -3630,6 +4034,7 @@ function closeDetailAlt(){
     el.classList.remove('active');
     el.classList.add('closing');
     setTimeout(function(){el.classList.remove('closing');},350);
+    window.dispatchEvent(new CustomEvent('ca-detail-alt-closed'));
 }
 
 // 监听设置变更，实时刷新气泡
@@ -3645,6 +4050,7 @@ window.openChatDetailAlt=function(entId){
     var el=document.getElementById('chatDetailAlt');
     el.classList.remove('closing');
     el.classList.add('active');
+    window.dispatchEvent(new CustomEvent('ca-detail-alt-opened'));
 };
 
 /* ═══ API Status Indicator ═══ */

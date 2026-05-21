@@ -579,13 +579,37 @@
     }
 
     /* ── Me 页 ── */
-    function renderMe() {
+    function renderMe(masksWithAv) {
         var page = document.getElementById('caPageMe');
         var totalMsgs = 0;
         Object.keys(conversations).forEach(function (k) { totalMsgs += conversations[k].length; });
 
         // 数据：从本地加载面具
         var masks = JSON.parse(localStorage.getItem('ca-user-masks') || '[{"id":"m1","name":"The Architect","bio":"Logical, precise, structural thinker.","active":true}]');
+
+        if(!masksWithAv){
+            // 从 IndexedDB 加载头像后再渲染
+            if(typeof ChatDB!=='undefined'){
+                var remaining=masks.length||1;
+                if(remaining===0){renderMe(masks);return;}
+                masks.forEach(function(m){
+                    ChatDB.open(function(d){
+                        if(!d){remaining--;if(!remaining)renderMe(masks);return;}
+                        var tx=d.transaction('avatars','readonly');
+                        var req=tx.objectStore('avatars').get('mask_'+m.id);
+                        req.onsuccess=function(){
+                            if(req.result&&req.result.data)m.avatar=req.result.data;
+                            remaining--;if(!remaining)renderMe(masks);
+                        };
+                        req.onerror=function(){remaining--;if(!remaining)renderMe(masks);};
+                    });
+                });
+            }else{
+                renderMe(masks);
+            }
+            return;
+        }
+        masks=masksWithAv;
         var activeMask = masks.find(function(m) { return m.active; }) || masks[0];
         
         var html = '<style>' +
@@ -694,6 +718,7 @@
             meAvInp.addEventListener('change', function(e) {
                 var file = e.target.files[0];
                 if (!file) return;
+                var url=URL.createObjectURL(file);
                 var img = new Image();
                 img.onload = function() {
                     var canvas = document.createElement('canvas');
@@ -707,11 +732,19 @@
                     var active = masks.find(function(m) { return m.active; });
                     if (active) {
                         active.avatar = dataUrl;
-                        localStorage.setItem('ca-user-masks', JSON.stringify(masks));
+                        if(typeof ChatDB!=='undefined'){
+                            ChatDB.open(function(d){
+                                if(!d)return;
+                                var tx=d.transaction('avatars','readwrite');
+                                tx.objectStore('avatars').put({id:'mask_'+active.id,data:dataUrl});
+                            });
+                        }
+                        var slim=masks.map(function(m){return{id:m.id,name:m.name,bio:m.bio,active:m.active};});
+                        localStorage.setItem('ca-user-masks', JSON.stringify(slim));
                         renderMe();
                     }
                 };
-                img.src = URL.createObjectURL(file);
+                img.src = url;
             });
         }
 
@@ -735,6 +768,7 @@
                     e.stopPropagation();
                     var file = e.target.files[0];
                     if (!file) return;
+                    var url=URL.createObjectURL(file);
                     var img = new Image();
                     img.onload = function() {
                         var canvas = document.createElement('canvas');
@@ -745,12 +779,22 @@
                         ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
                         var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
                         
-                        var m = masks.find(function(m) { return m.id === id; });
-                        if (m) m.avatar = dataUrl;
-                        localStorage.setItem('ca-user-masks', JSON.stringify(masks));
+                        var m = masks.find(function(mk) { return mk.id === id; });
+                        if(m){
+                            m.avatar=dataUrl;
+                            if(typeof ChatDB!=='undefined'){
+                                ChatDB.open(function(d){
+                                    if(!d)return;
+                                    var tx=d.transaction('avatars','readwrite');
+                                    tx.objectStore('avatars').put({id:'mask_'+m.id,data:dataUrl});
+                                });
+                            }
+                        }
+                        var slim=masks.map(function(mk){return{id:mk.id,name:mk.name,bio:mk.bio,active:mk.active};});
+                        localStorage.setItem('ca-user-masks', JSON.stringify(slim));
                         renderMe();
                     };
-                    img.src = URL.createObjectURL(file);
+                    img.src = url;
                 });
             }
             card.querySelector('.ca-mask-toggle-active').addEventListener('click', function(e) {

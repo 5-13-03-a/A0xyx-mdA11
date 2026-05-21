@@ -90,9 +90,9 @@ function render(){
         var preview=lastMsg?(lastMsg.role==='user'?'You: ':'')+(_prevRaw||'...').substring(0,30):'Tap to start chatting...';
         var timeStr=lastMsg?(lastMsg.time||'').split(' ')[1]||'':'';
         var dispName=ent.nickname||ent.name;
-        var avStyle='background:'+(ent.color||pickColor(ent.name));
+        var avStyle='background:'+(ent.color||pickColor(ent.name))+';position:relative;overflow:hidden;';
         var avHtml=ent.avatar
-            ?'<img src="'+ent.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:14px;">'
+            ?'<img src="'+ent.avatar+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:14px;">'
             :'<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">'+getInitial(dispName)+'</div>';
         var onlineHtml='';
         var badgeHtml=ent.unread>0?'<div class="cr-chat-badge">'+ent.unread+'</div>':'';
