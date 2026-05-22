@@ -607,6 +607,7 @@ function doRenderMessages(area,ent){
 
         // 统一把 |||| 转为 \n，只用换行来分段
         text=text.replace(/\|\|\|\|/g,'\n');
+        var _lineCount=0;
         var lines=text.split('\n');
         lines.forEach(function(line){
             var t=line.trim();
@@ -633,7 +634,25 @@ function doRenderMessages(area,ent){
                 t=tParts[0].trim();
                 transText=tParts[1]?tParts[1].trim():'';
             }
-            if(t.length>0)bubbles.push({type:type,text:t,trans:transText,msgIdx:_msgIdx,storedTime:m.time||''});
+            // 检测该行中的翻页标签
+            var _wtLineRegex=/\[(?:WT_TURN_PAGE|WT_PREV_PAGE|翻页|下一页|上一页)\]/g;
+            var _wtLineMatch;
+            var _wtLineTurns=[];
+            while((_wtLineMatch=_wtLineRegex.exec(t))!==null){
+                var _wtLTag=_wtLineMatch[0];
+                _wtLineTurns.push((_wtLTag==='[上一页]'||_wtLTag==='[WT_PREV_PAGE]')?'prev':'next');
+            }
+            t=t.replace(_wtLineRegex,'').trim();
+            // 先插文字气泡（如果清理后还有内容）
+            if(t.length>0){
+                bubbles.push({type:type,text:t,trans:transText,msgIdx:_msgIdx,lineIdx:_lineCount++,storedTime:m.time||''});
+            }
+            // 再在同一位置插翻页通知
+            if(_wtLineTurns.length>0){
+                _wtLineTurns.forEach(function(_ptd){
+                    bubbles.push({type:'__sysinfo__',text:'[WT_PAGE_TURN::'+_ptd+'::对方翻了一页]',storedTime:m.time?m.time.split(' ')[1]||'':'',msgIdx:_msgIdx});
+                });
+            }
         });
     });
 
@@ -751,6 +770,57 @@ function doRenderMessages(area,ent){
                     '</div>';
                 }
             }catch(ex){console.error('[HV_CARD parse error]',ex,_hvRaw);}
+            _lastTimeLabel=_bTime;
+            lastType=null;
+            return;
+        }
+
+        // 一起看：阅读进度消息（不显示在聊天界面，只给AI看）
+        if(b.type==='__sysinfo__'&&b.text&&b.text.indexOf('[WT_READING::')===0){
+            _lastTimeLabel=_bTime;
+            lastType=null;
+            return;
+        }
+
+        // 一起看：翻页提示
+        if(b.type==='__sysinfo__'&&b.text&&b.text.indexOf('[WT_PAGE_TURN::')===0){
+            var _ptDir=b.text.indexOf('next')!==-1?'next':'prev';
+            html+='<div class="cda-dc-notif-row" data-msg-idx="'+b.msgIdx+'">'+
+                '<div style="display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:16px;background:rgba(26,26,31,0.02);border:0.5px solid rgba(26,26,31,0.06);">'+
+                    '<svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:rgba(26,26,31,0.25);fill:none;stroke-width:2;flex-shrink:0;"><polyline points="'+(_ptDir==='next'?'9 6 15 12 9 18':'15 18 9 12 15 6')+'"/></svg>'+
+                    '<span style="font-size:10px;color:rgba(26,26,31,0.25);font-weight:400;">对方翻了一页</span>'+
+                '</div>'+
+            '</div>';
+            _lastTimeLabel=_bTime;
+            lastType=null;
+            return;
+        }
+
+        // 一起看：退出通知
+        if(b.type==='__sysinfo__'&&b.text&&b.text.indexOf('[WT_EXIT::')===0){
+            html+='<div class="cda-dc-notif-row" data-msg-idx="'+b.msgIdx+'">'+
+                '<div style="display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:16px;background:rgba(26,26,31,0.02);border:0.5px solid rgba(26,26,31,0.06);">'+
+                    '<svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:rgba(26,26,31,0.25);fill:none;stroke-width:2;flex-shrink:0;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'+
+                    '<span style="font-size:10px;color:rgba(26,26,31,0.25);font-weight:400;">退出了一起看</span>'+
+                '</div>'+
+            '</div>';
+            _lastTimeLabel=_bTime;
+            lastType=null;
+            return;
+        }
+
+        // 一起看邀请卡片
+        if(b.type==='__sysinfo__'&&b.text&&b.text.indexOf('[WT_INVITE::')===0){
+            var _wtEndIdx=b.text.indexOf('::WT_END]');
+            var _wtRaw=_wtEndIdx!==-1?b.text.substring(12,_wtEndIdx):b.text.substring(12,b.text.length-1);
+            try{
+                var _wtData=JSON.parse(_wtRaw);
+                if(typeof WatchTogether!=='undefined'&&WatchTogether.buildInviteCardHtml){
+                    html+='<div class="cda-dc-notif-row" data-msg-idx="'+b.msgIdx+'">'+
+                        WatchTogether.buildInviteCardHtml(_wtData,b.msgIdx)+
+                    '</div>';
+                }
+            }catch(ex){console.error('[WT_INVITE parse error]',ex,_wtRaw);}
             _lastTimeLabel=_bTime;
             lastType=null;
             return;
@@ -1058,11 +1128,12 @@ function doRenderMessages(area,ent){
                 }
                 // 把拆分后的 parts 直接渲染为多行（气泡+旁白交替）
                 // 先关闭当前 msg-row，逐段输出
+                var _narrLineCount=0;
                 parts.forEach(function(p,pi){
                     if(p.type==='narr'){
                         var _nsClass='';
                         try{var _nc2=JSON.parse(localStorage.getItem('ca-narration-config')||'{}');if(_nc2.style&&_nc2.style!=='a')_nsClass=' ns-'+_nc2.style;}catch(ex2){}
-                        html+='<div class="cda-narr-line'+_nsClass+'" data-msg-idx="'+b.msgIdx+'">'+escapeHtml(applyFilter(p.content,'narr'))+'</div>';
+                        html+='<div class="cda-narr-line'+_nsClass+'" data-msg-idx="'+b.msgIdx+'" data-line-idx="'+(_narrLineCount++)+'">'+escapeHtml(applyFilter(p.content,'narr'))+'</div>';
                     }else if(p.content){
                         var pIsLast=(pi===parts.length-1)||(pi===parts.length-2&&parts[parts.length-1].type==='narr');
                         var pTailClass=pIsLast&&isLast?' has-tail':'';
@@ -1075,7 +1146,7 @@ function doRenderMessages(area,ent){
                                     :'<div class="cda-msg-av hidden" style="background:'+color+';">'+initial+'</div>';
                             }
                         }
-                        html+='<div class="cda-msg-row received'+pTailClass+'" data-msg-idx="'+b.msgIdx+'">'+
+                        html+='<div class="cda-msg-row received'+pTailClass+'" data-msg-idx="'+b.msgIdx+'" data-line-idx="'+(_narrLineCount++)+'">'+
                             pAvHtml+
                             '<div class="cda-bubble-wrap"><div class="cda-bubble">'+escapeHtml(applyFilter(p.content,'received'))+'</div></div>'+
                         '</div>';
@@ -1127,7 +1198,7 @@ function doRenderMessages(area,ent){
 
         var isTfRow=b.text==='__TRANSFER__';
         var finalTailClass=isTfRow?'':tailClass;
-        html+='<div class="cda-msg-row '+type+finalTailClass+groupClass+(isTfRow?' cda-tf-row':'')+'" data-msg-idx="'+b.msgIdx+'">'+ 
+        html+='<div class="cda-msg-row '+type+finalTailClass+groupClass+(isTfRow?' cda-tf-row':'')+'" data-msg-idx="'+b.msgIdx+'" data-line-idx="'+(b.lineIdx||0)+'">'+ 
             avHtml+
             bubbleContent+
             sentAvHtml+
@@ -1276,8 +1347,27 @@ function addAiMsg(text,callback){
         ChatDB.saveConversation(currentEntId,window._caConversations[currentEntId]);
     }
 
+    // 检测AI是否发出翻页指令（清除标签，不在气泡中显示）
+    var _wtHasNext=fullText.indexOf('[WT_TURN_PAGE]')!==-1||fullText.indexOf('[翻页]')!==-1||fullText.indexOf('[下一页]')!==-1;
+    var _wtHasPrev=fullText.indexOf('[上一页]')!==-1||fullText.indexOf('[WT_PREV_PAGE]')!==-1;
+    fullText=fullText.replace(/\[WT_TURN_PAGE\]/g,'').replace(/\[翻页\]/g,'').replace(/\[下一页\]/g,'').replace(/\[上一页\]/g,'').replace(/\[WT_PREV_PAGE\]/g,'').trim();
+    if(_wtHasNext){
+        window.dispatchEvent(new CustomEvent('wt-ai-turn-page',{detail:{direction:'next'}}));
+    }
+    if(_wtHasPrev){
+        window.dispatchEvent(new CustomEvent('wt-ai-turn-page',{detail:{direction:'prev'}}));
+    }
+
+    // 更新存储的消息文本（清除翻页标签）
+    msg.text=fullText;
+    if(typeof ChatDB!=='undefined'&&ChatDB.saveConversation){
+        ChatDB.saveConversation(currentEntId,window._caConversations[currentEntId]);
+    }
+
     // 直接追加气泡到 DOM 并逐条播放动画（不全量重渲染）
-    appendAiBubbles(fullText,function(){insertTgnIfNeeded();});
+    if(fullText){
+        appendAiBubbles(fullText,function(){insertTgnIfNeeded();});
+    }
 
     // 检查自动总结阈值
     var _autoThreshold=parseInt(localStorage.getItem('ca-auto-sum-threshold-'+currentEntId)||'0',10);
@@ -1350,13 +1440,12 @@ function addAiMsg(text,callback){
                 }
                 var transcript=_filteredForSum.map(function(m,i){
                     var _tStr=m.time||'';
-                    var _timeHM='';
+                    var _dTime='';
                     if(_tStr){
-                        var _hmMatch=_tStr.match(/(\d{1,2}:\d{2})$/);
-                        if(_hmMatch)_timeHM=_hmMatch[1];
+                        // 完整保留日期+时间，如 "2025-01-20 14:30"
+                        _dTime=_tStr;
                     }
                     var _roleL=m.role==='user'?_sumUserName:_sumCharName;
-                    var _dTime=_timeHM||_tStr||'';
                     return '['+(i+1)+']'+(_dTime?' ['+_dTime+']':'')+' '+_roleL+'：'+m.text;
                 }).join('\n');
                 var apiConfig;try{apiConfig=JSON.parse(localStorage.getItem('ca-api-config')||'{}');}catch(e){return;}
@@ -1392,15 +1481,15 @@ function addAiMsg(text,callback){
                     'HIGH — 改变关系走向的核心事件（通常整段对话只有0-2条）\n'+
                     'MID — 丰富关系细节的重要信息（通常2-4条）\n'+
                     'LOW — 临时性的氛围/状态（通常1-2条）\n\n'+
-                    '【输出格式】每条独立一行，写事件经过而非引用原话：\n'+
-                    'HIGH: [时间] 事件经过描述（含双方情绪反应）\n'+
-                    'MID: [时间] 事件/信息描述\n'+
-                    'LOW: 当前状态/氛围描述\n\n'+
+                    '【输出格式】每条独立一行，时间必须包含完整日期（X月X日 HH:MM 24小时制），写事件经过而非引用原话：\n'+
+                    'HIGH: [X月X日 HH:MM] 事件经过描述（含双方情绪反应）\n'+
+                    'MID: [X月X日 HH:MM] 事件/信息描述\n'+
+                    'LOW: [X月X日] 当前状态/氛围描述\n\n'+
                     '【示例】\n'+
-                    'HIGH: [22:14] [user]突然说想见[char]，[char]沉默很久后承认自己也想见面，两人关系从暧昧进入明确的互相喜欢阶段。\n'+
-                    'MID: [22:30] [char]透露自己害怕雷声，[user]说下次打雷会陪着，[char]感到被在乎。\n'+
-                    'MID: [22:45] [user]给[char]转账520元备注"想你了"，[char]收下并表示开心。\n'+
-                    'LOW: 本段对话整体氛围温馨亲密，[char]比之前更主动表达情感。\n\n'+
+                    'HIGH: [1月20日 22:14] [user]突然说想见[char]，[char]沉默很久后承认自己也想见面，两人关系从暧昧进入明确的互相喜欢阶段。\n'+
+                    'MID: [1月20日 22:30] [char]透露自己害怕雷声，[user]说下次打雷会陪着，[char]感到被在乎。\n'+
+                    'MID: [1月20日 22:45] [user]给[char]转账520元备注"想你了"，[char]收下并表示开心。\n'+
+                    'LOW: [1月20日] 本段对话整体氛围温馨亲密，[char]比之前更主动表达情感。\n\n'+
                     '对话记录：\n'+transcript;
                 fetch(ep,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},body:JSON.stringify({model:model,messages:[{role:'user',content:sumPrompt}],max_tokens:800,temperature:0.4})})
                 .then(function(r){return r.json();})
@@ -2012,6 +2101,25 @@ function triggerAI(){
         '3. After the token you may add a |||| segment with a normal thankful/reactive message.\n'+
         'Example: if user sent [TRANSFER_CARD::{"amount":"520.00","note":"想你了","status":"pending"}], you respond with [TRANSFER_CARD::{"amount":"520.00","note":"想你了","status":"received"}]\n收到啦！谢谢你～\n'+
         '\nDO NOT output the token unless you are genuinely sending or accepting a transfer. DO NOT make up amounts.\n'+
+        (function(){
+            if(!currentEntId)return '';
+            var _wtMsgs=window._caConversations&&window._caConversations[currentEntId]?window._caConversations[currentEntId]:[];
+            var _hasWt=false;
+            for(var _wi=_wtMsgs.length-1;_wi>=0;_wi--){
+                if(_wtMsgs[_wi].role==='info'&&_wtMsgs[_wi].text&&(_wtMsgs[_wi].text.indexOf('[WT_READING::')===0||_wtMsgs[_wi].text.indexOf('[WT_INVITE::')===0)){_hasWt=true;break;}
+            }
+            if(!_hasWt)return '';
+            return '\n\nWATCH TOGETHER (一起看) SYSTEM:\n'+
+            'You and the user are currently reading a novel together. You can see the reading content in [WT_READING] messages.\n'+
+            '- Discuss the content naturally, share reactions, ask questions about the plot\n'+
+            '- Turn the page by outputting [翻页] or [下一页] as a standalone token in your reply (this will advance the reading position)\n'+
+            '- Output [上一页] to go back one page\n'+
+            '- Only turn pages when it feels natural (e.g., "我看完了这页了 [翻页]" or "等等让我翻回去看看 [上一页]")\n'+
+            '- Do NOT spam page turns. One per reply maximum.\n'+
+            '- React to the story content as a real person would — share emotions, predictions, favorite lines.\n'+
+            '- Do NOT output [翻页]/[下一页]/[上一页] unless you are in Watch Together mode.\n';
+        })()+
+        '\n\n[CONVERSATION CONTINUITY]\n你必须始终记住之前对话的完整上下文。即使中间有系统通知或非文字消息插入，你的回复也必须自然衔接上一次实际对话的内容和情感状态。不要表现得像失忆了一样。如果对方刚才在和你聊某个话题，你下次回复时要能自然续上那个话题。\n'+
         memInject+timeInject+(wbEnd?'\n\n'+wbEnd:'');
 
     // 记忆轮数（与旧系统共用 ca-mem-rounds-{id}）
@@ -2024,6 +2132,39 @@ function triggerAI(){
                     var _infoText=m.text;
                     // 过滤无意义的系统通知
                     if(_infoText==='♪♫'||_infoText==='♪'||_infoText.indexOf('已领取')!==-1||_infoText.indexOf('将备注修改')!==-1||_infoText.indexOf('旁白模式')!==-1)return;
+                    // 一起看：邀请卡片
+                    if(_infoText.indexOf('[WT_INVITE::')===0){
+                        var _wtEnd=_infoText.indexOf('::WT_END]');
+                        if(_wtEnd!==-1){
+                            try{
+                                var _wtD=JSON.parse(_infoText.substring(12,_wtEnd));
+                                var _wtMsg='[用户邀请你一起看小说「'+_wtD.name+'」，共'+_wtD.len+'字，当前进度'+_wtD.pct+'%]';
+                                if(_wtD.currentText){_wtMsg+='\n[当前阅读内容：]\n'+_wtD.currentText;}
+                                apiMessages.push({role:'user',content:_wtMsg});
+                            }catch(ex){}
+                        }
+                        return;
+                    }
+                    // 一起看：阅读进度同步
+                    if(_infoText.indexOf('[WT_READING::')===0){
+                        var _wrEnd=_infoText.indexOf('::WT_END]');
+                        if(_wrEnd!==-1){
+                            try{
+                                var _wrD=JSON.parse(_infoText.substring(13,_wrEnd));
+                                apiMessages.push({role:'user',content:'[一起看·阅读进度更新「'+_wrD.name+'」当前位置:'+_wrD.pos+']\n[正在阅读的内容：]\n'+_wrD.text});
+                            }catch(ex){}
+                        }
+                        return;
+                    }
+                    // 一起看：退出通知
+                    if(_infoText.indexOf('[WT_EXIT::')===0){
+                        apiMessages.push({role:'user',content:'[对方退出了一起看模式，不再一起阅读了]'});
+                        return;
+                    }
+                    // 一起看：翻页通知（不传给AI，只是UI显示）
+                    if(_infoText.indexOf('[WT_PAGE_TURN::')===0){
+                        return;
+                    }
                     // 拆分 LAZY 代发内容
                     var _lazyContent='';
                     if(_infoText.indexOf('|||LAZY|||')!==-1){
@@ -2067,7 +2208,7 @@ function triggerAI(){
         var _cleanText=m.text.replace(/\|\|\|\|/g,'\n');
         // 清理用户消息中的系统标签，减少 token 浪费和 AI 困惑
         if(m.role==='user'){
-            _cleanText=_cleanText.replace(/^\[SYS_TIME:[^\]]*\]\s*/i,'');
+            // 不清理 SYS_TIME，让 AI 感知时间
         }
         // 清理 AI 回复中可能残留的系统标签
         _cleanText=_cleanText.replace(/\[CURRENT TIME[^\]]*\]/gi,'');
@@ -2079,6 +2220,12 @@ function triggerAI(){
             apiMessages.push({role:m.role==='user'?'user':'assistant',content:_cleanText});
         }
     });
+
+    // 如果最后一条对话消息是导演卡片（info→user+assistant对），追加隐式 user 指令让 AI 回复
+    var _lastReal=apiMessages[apiMessages.length-1];
+    if(_lastReal&&_lastReal.role==='assistant'&&_lastReal.content==='Understood. I will comply immediately.'){
+        apiMessages.push({role:'user',content:'[Continue the conversation naturally based on the directive above. Respond in character.]'});
+    }
 
     // 导演卡片 + 旁白模式：构建末尾提醒（合并为一条 system 消息注入，避免破坏对话结构）
     (function(){
@@ -3013,7 +3160,11 @@ function render(entId){
                     showToast('一起听 · 开发中');
                     break;
                 case 'watch':
-                    showToast('一起看 · 开发中');
+                    if(typeof WatchTogether!=='undefined'&&WatchTogether.open){
+                        WatchTogether.open(currentEntId);
+                    }else{
+                        showToast('一起看 · 模块未加载');
+                    }
                     break;
                 case 'meet':
                     if(typeof openPrivateSpace==='function'){
@@ -3598,110 +3749,70 @@ function handleCtxAction(action,bubble,isSent,bubbleIdx){
 
         case 'edit':
             if(realMsgIdx<0||realMsgIdx>=msgs.length)break;
+            var editRow=bubble.closest('.cda-msg-row,.cda-narr-line');
+            var editLineIdx=editRow?parseInt(editRow.dataset.lineIdx||'0',10):0;
+            var editIsNarr=editRow&&editRow.classList.contains('cda-narr-line');
             var editMsg=msgs[realMsgIdx];
             var editOrigText=String(editMsg.text);
-            var editBubbleText=text;// 气泡显示的纯文本
+            var editBubbleText=text;
 
-            // 在原始消息的所有行中，找到内容匹配当前气泡文字的那一行
-            // 需要展开旁白标签内的文本来匹配
-            var editLines=editOrigText.split('\n');
-            var editTargetLineIdx=-1;
-            var editTargetIsNarr=false;
-            var editTargetNarrIdx=-1;
-            var editTargetSubIdx=-1;
-
-            for(var _ei=0;_ei<editLines.length;_ei++){
-                var _el=editLines[_ei].trim();
-                if(!_el)continue;
-
-                // 检查这行是否包含旁白标签
-                if(_el.indexOf('[♪♫]')!==-1){
-                    // 拆分旁白和普通文本
-                    var _narrRe=/\[♪♫\]([\s\S]*?)\[\/♪♫\]/g;
-                    var _lastP=0;
-                    var _nm;
-                    var _subIdx=0;
-                    while((_nm=_narrRe.exec(_el))!==null){
-                        if(_nm.index>_lastP){
-                            var _before=_el.substring(_lastP,_nm.index).trim();
-                            if(_before&&_before===editBubbleText){
-                                editTargetLineIdx=_ei;
-                                editTargetSubIdx=_subIdx;
-                                break;
-                            }
-                            _subIdx++;
-                        }
-                        var _narrContent=_nm[1].trim();
-                        if(_narrContent===editBubbleText){
-                            editTargetLineIdx=_ei;
-                            editTargetIsNarr=true;
-                            editTargetNarrIdx=_subIdx;
-                            break;
-                        }
-                        _subIdx++;
-                        _lastP=_nm.index+_nm[0].length;
-                    }
-                    if(editTargetLineIdx>=0)break;
-                    if(_lastP<_el.length){
-                        var _after=_el.substring(_lastP).trim();
-                        if(_after&&_after===editBubbleText){
-                            editTargetLineIdx=_ei;
-                            editTargetSubIdx=_subIdx;
-                            break;
-                        }
-                    }
-                }else{
-                    // 普通行：去掉翻译部分后匹配
-                    var _elClean=_el;
-                    if(_elClean.indexOf('|||TRANS|||')!==-1)_elClean=_elClean.split('|||TRANS|||')[0].trim();
-                    if(_elClean===editBubbleText){
-                        editTargetLineIdx=_ei;
-                        break;
-                    }
-                }
-            }
-
-            var editDisplayText=editBubbleText;
-            var newText=prompt('编辑消息:',editDisplayText);
+            var newText=prompt('编辑消息:',editBubbleText);
             if(newText!==null&&newText.trim()){
-                if(editTargetLineIdx>=0){
-                    var _targetLine=editLines[editTargetLineIdx].trim();
-                    if(editTargetIsNarr){
-                        // 替换旁白内容
-                        var _narrRe2=/\[♪♫\]([\s\S]*?)\[\/♪♫\]/g;
-                        var _narrCount=0;
-                        editLines[editTargetLineIdx]=_targetLine.replace(_narrRe2,function(match,content){
-                            if(content.trim()===editBubbleText){
-                                return '[♪♫]'+newText.trim()+'[/♪♫]';
+                // 按换行拆分原始消息，展开成「段落列表」（含旁白）
+                var _rawLines=editOrigText.split('\n');
+                var _segments=[]; // {lineIdx, start, end, type:'text'|'narr', raw}
+                var _segCount=0;
+                _rawLines.forEach(function(_rl,_ri){
+                    var _rlt=_rl.trim();
+                    if(!_rlt)return;
+                    if(_rlt.indexOf('[♪♫]')!==-1){
+                        var _nRe=/\[♪♫\]([\s\S]*?)\[\/♪♫\]/g;
+                        var _last=0;var _nm2;
+                        while((_nm2=_nRe.exec(_rlt))!==null){
+                            if(_nm2.index>_last){
+                                var _bf=_rlt.substring(_last,_nm2.index).trim();
+                                if(_bf)_segments.push({rawLineIdx:_ri,segCount:_segCount++,type:'text',content:_bf});
                             }
-                            return match;
-                        });
-                    }else if(_targetLine.indexOf('[♪♫]')!==-1){
-                        // 行内有旁白但编辑的是普通文本部分
-                        // 用精确替换
-                        var _escaped=editBubbleText.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-                        var _replRe=new RegExp('(?<!\\[♪♫\\])'+_escaped+'(?!\\[/♪♫\\])');
-                        if(_replRe.test(editLines[editTargetLineIdx])){
-                            editLines[editTargetLineIdx]=editLines[editTargetLineIdx].replace(editBubbleText,newText.trim());
-                        }else{
-                            editLines[editTargetLineIdx]=editLines[editTargetLineIdx].replace(editBubbleText,newText.trim());
+                            _segments.push({rawLineIdx:_ri,segCount:_segCount++,type:'narr',content:_nm2[1].trim(),fullMatch:_nm2[0]});
+                            _last=_nm2.index+_nm2[0].length;
+                        }
+                        if(_last<_rlt.length){
+                            var _af=_rlt.substring(_last).trim();
+                            if(_af){
+                                var _afClean=_af;
+                                if(_afClean.indexOf('|||TRANS|||')!==-1)_afClean=_afClean.split('|||TRANS|||')[0].trim();
+                                _segments.push({rawLineIdx:_ri,segCount:_segCount++,type:'text',content:_afClean,rawFull:_af});
+                            }
                         }
                     }else{
-                        // 普通行直接替换
-                        var _hadTrans='';
-                        if(_targetLine.indexOf('|||TRANS|||')!==-1){
-                            _hadTrans='|||TRANS|||'+_targetLine.split('|||TRANS|||')[1];
-                        }
-                        editLines[editTargetLineIdx]=newText.trim()+_hadTrans;
+                        var _clean=_rlt;
+                        if(_clean.indexOf('|||TRANS|||')!==-1)_clean=_clean.split('|||TRANS|||')[0].trim();
+                        if(_clean)_segments.push({rawLineIdx:_ri,segCount:_segCount++,type:'text',content:_clean,rawFull:_rlt});
                     }
-                    msgs[realMsgIdx].text=editLines.join('\n');
+                });
+
+                // 用 lineIdx 精确定位要编辑的段
+                var _targetSeg=_segments[editLineIdx];
+                if(_targetSeg){
+                    var _tgtRawIdx=_targetSeg.rawLineIdx;
+                    if(_targetSeg.type==='narr'){
+                        // 替换旁白内容
+                        _rawLines[_tgtRawIdx]=_rawLines[_tgtRawIdx].replace(_targetSeg.fullMatch,'[♪♫]'+newText.trim()+'[/♪♫]');
+                    }else{
+                        // 替换普通文本（保留翻译后缀和旁白标签）
+                        var _origLine=_rawLines[_tgtRawIdx];
+                        if(_origLine.indexOf(_targetSeg.content)!==-1){
+                            _rawLines[_tgtRawIdx]=_origLine.replace(_targetSeg.content,newText.trim());
+                        }else{
+                            // 模糊替换
+                            _rawLines[_tgtRawIdx]=newText.trim();
+                        }
+                    }
+                    msgs[realMsgIdx].text=_rawLines.join('\n');
                 }else{
-                    // fallback：找不到匹配行，尝试全文替换
+                    // lineIdx 越界，fallback 全文替换
                     if(editOrigText.indexOf(editBubbleText)!==-1){
                         msgs[realMsgIdx].text=editOrigText.replace(editBubbleText,newText.trim());
-                    }else{
-                        // 单行消息直接覆盖
-                        msgs[realMsgIdx].text=newText.trim();
                     }
                 }
                 if(typeof ChatDB!=='undefined'&&ChatDB.saveConversation){
