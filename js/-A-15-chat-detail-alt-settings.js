@@ -647,19 +647,56 @@ function bindSettingsEvents(entId){
         transGrid.querySelectorAll('.cs-trans-item').forEach(function(item){
             item.addEventListener('click',function(e){
                 e.stopPropagation();
+                // 点击前，读取当前激活项的 style 作为 prevStyle（最可靠）
+                var prevActiveItem=transGrid.querySelector('.cs-trans-item.active');
+                var prevStyle=prevActiveItem?prevActiveItem.dataset.style:'off';
+                var newStyle=item.dataset.style;
                 transGrid.querySelectorAll('.cs-trans-item').forEach(function(i){i.classList.remove('active');});
                 item.classList.add('active');
                 var tc;try{tc=JSON.parse(localStorage.getItem('ca-trans-config-14')||'{}');}catch(ex){tc={};}
-                tc.style=item.dataset.style;
+                tc.style=newStyle;
                 localStorage.setItem('ca-trans-config-14',JSON.stringify(tc));
-                renderTransPreview(item.dataset.style);
+                renderTransPreview(newStyle);
+                // 发翻译开关通知到聊天室（每次切换都提醒AI格式要求）
+                (function(){
+                    var _entId=settingsEntId||window._cdaCurrentEntId;
+                    if(!_entId)return;
+                    if(typeof window.cdaAddTransNotice==='function'){
+                        if(newStyle!=='off'){
+                            var targetLang=(document.getElementById('csTransTargetLang')&&document.getElementById('csTransTargetLang').value.trim())||tc.transLang||'Chinese';
+                            window.cdaAddTransNotice('on',targetLang);
+                        }else{
+                            window.cdaAddTransNotice('off');
+                        }
+                    }else{
+                        // fallback：直接写入对话记录
+                        var _token='[TRANS_NOTICE::'+(newStyle!=='off'?'on':'off')+']';
+                        var _lang=(newStyle!=='off')?((document.getElementById('csTransTargetLang')&&document.getElementById('csTransTargetLang').value.trim())||tc.transLang||'Chinese'):'';
+                        if(_lang)_token='[TRANS_NOTICE::on::'+_lang+']';
+                        if(!window._caConversations)window._caConversations={};
+                        if(!window._caConversations[_entId])window._caConversations[_entId]=[];
+                        var _aiText=newStyle!=='off'
+                            ?('[⚠ BILINGUAL MODE ACTIVATED — MANDATORY FORMAT REMINDER]\nFrom this point forward, you MUST use the bilingual format for EVERY reply.\nFormat: Write your reply naturally first, then add "|||TRANS|||" followed by the '+(_lang||'Chinese')+' translation.\nExample:想你了|||TRANS|||I miss you\nIf your reply has multiple lines (split by newline), EACH line must contain "|||TRANS|||".\nDO NOT skip the translation. DO NOT forget the delimiter. This is non-negotiable.')
+                            :('[⚠ BILINGUAL MODE DEACTIVATED]\nStop using the "|||TRANS|||" delimiter. Reply in a single language only from now on.');
+                        var _d=new Date();
+                        var _t=_d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')+' '+String(_d.getHours()).padStart(2,'0')+':'+String(_d.getMinutes()).padStart(2,'0');
+                        window._caConversations[_entId].push({role:'info',text:_token,_aiText:_aiText,ai_visible:true,_sticky:true,time:_t});
+                        if(typeof ChatDB!=='undefined'&&ChatDB.saveConversation){
+                            ChatDB.saveConversation(_entId,window._caConversations[_entId]);
+                        }
+                    }
+                })();
             });
         });
 
-        // 初始渲染当前选中的预览
+        // 初始渲染当前选中的预览（用ca-trans-config-14，与实际配置一致）
         var initTransConfig;
-        try{initTransConfig=JSON.parse(localStorage.getItem('ca-trans-config')||'{"style":"off"}');}catch(ex){initTransConfig={style:'off'};}
-        renderTransPreview(initTransConfig.style);
+        try{initTransConfig=JSON.parse(localStorage.getItem('ca-trans-config-14')||localStorage.getItem('ca-trans-config')||'{"style":"off"}');}catch(ex){initTransConfig={style:'off'};}
+        // 同步active 状态到 DOM
+        var _initStyle=initTransConfig.style||'off';
+        transGrid.querySelectorAll('.cs-trans-item').forEach(function(i){
+            i.classList.toggle('active',i.dataset.style===_initStyle);
+        });renderTransPreview(_initStyle);
     }
     var transMyLang=document.getElementById('csTransMyLang');
     var transTargetLang=document.getElementById('csTransTargetLang');

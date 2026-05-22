@@ -827,6 +827,28 @@ function doRenderMessages(area,ent){
             return;
         }
 
+        // 翻译开关通知
+        // 翻译开关通知
+        if(b.type==='__sysinfo__'&&b.text&&b.text.indexOf('[TRANS_NOTICE::')===0){
+            // 用正则统一解析，兼容 [TRANS_NOTICE::on] 和 [TRANS_NOTICE::on::Chinese] 两种格式
+            var _tnMatch=b.text.match(/\[TRANS_NOTICE::(on|off)(?:::([^\]]*))?\]/);
+            var _tnOn=_tnMatch&&_tnMatch[1]==='on';
+            var _tnLang=(_tnMatch&&_tnMatch[2])||'';
+            var _tnIcon=_tnOn
+                ?'<svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:rgba(26,26,31,0.35);fill:none;stroke-width:1.5;flex-shrink:0;stroke-linecap:round;stroke-linejoin:round;"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg>'
+                :'<svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:rgba(26,26,31,0.25);fill:none;stroke-width:1.5;flex-shrink:0;stroke-linecap:round;stroke-linejoin:round;"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/><line x1="2" y1="2" x2="22" y2="22" stroke-width="1.5"/></svg>';
+            var _tnText=_tnOn
+                ?('翻译已开启'+(_tnLang?' · '+_tnLang:'')):'翻译已关闭';
+            var _tnColor=_tnOn?'rgba(26,26,31,0.35)':'rgba(26,26,31,0.2)';
+            html+='<div class="cda-dc-notif-row cda-trans-notif-row" data-msg-idx="'+b.msgIdx+'">'+
+                '<div style="display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:16px;background:rgba(26,26,31,0.02);border:0.5px solid rgba(26,26,31,0.05);">'+
+                    _tnIcon+
+                    '<span style="font-size:10px;color:'+_tnColor+';font-weight:500;">'+_tnText+'</span>'+
+                '</div>'+'</div>';_lastTimeLabel=_bTime;
+            lastType=null;
+            return;
+        }
+
         // 系统通知（收款等）
         if(b.type==='__sysinfo__'){
             var _isNarrNotif=(b.text==='♪♫'||b.text==='♪');
@@ -1308,6 +1330,42 @@ function addAiMsg(text,callback){
     fullText=fullText.replace(/\[\s*\/?\s*-?\s*♪\s*-\s*♫\s*\]/g,function(match){
         return match.indexOf('/')!==-1?'[/♪♫]':'[♪♫]';
     });
+    //翻译格式容错：翻译模式开启时，AI 没加|||TRANS||| 分隔符的情况
+    // 检测是否有翻译配置且AI 回复缺少分隔符
+    (function(){
+        var _tc2;try{_tc2=JSON.parse(localStorage.getItem('ca-trans-config-14')||'{}');}catch(e){_tc2={};}
+        if(!_tc2||_tc2.style==='off'||!_tc2.transLang)return;
+        var _tLang=(_tc2.transLang||'Chinese').toLowerCase();
+        // 检查每一行：如果没有 |||TRANS||| 但行内存在双语混合的迹象
+        // 常见情况：AI 把原文和翻译用括号、斜线、"/"、"——"、空行隔开
+        var _lines=fullText.split('\n');
+        var _fixed=_lines.map(function(_line){
+            var _lt=_line.trim();
+            if(!_lt)return _line;
+            // 已经有分隔符，不处理
+            if(_lt.indexOf('|||TRANS|||')!==-1)return _line;
+            // 跳过旁白标签行
+            if(_lt.indexOf('[♪♫]')!==-1)return _line;
+            // 检测常见的双语分隔模式：
+            // 1. "原文 / 译文" 或 "原文／译文"
+            // 2. "原文（译文）"——括号内是翻译
+            // 3. "原文\n译文" 两行紧挨（行级别已处理）
+            // 简单容错：检测 " / " 或 "（" 模式的双语混合，但这太激进容易误触发
+            // 更保守的方案：只在行包含明确的双斜杠或 pipe 分隔时处理
+            if(/\s*[\/|]\s*/.test(_lt)&&_lt.split(/\s*[\/|]\s*/).length===2){
+                var _parts=_lt.split(/\s*[\/|]\s*/);
+                // 简单判断：两段都有实质内容，且不是 URL
+                if(_parts[0].trim().length>1&&_parts[1].trim().length>1&&_lt.indexOf('://')===-1){
+                    return _parts[0].trim()+'|||TRANS|||'+_parts[1].trim();
+                }
+            }
+            return _line;
+        });
+        // 只有当有行被修复时才更新
+        var _fixedText=_fixed.join('\n');
+        if(_fixedText!==fullText){
+            fullText=_fixedText;}
+    })();
     var msg={role:'assistant',text:fullText,time:dateTimeNow()};
     window._caConversations[currentEntId].push(msg);
 
@@ -2145,6 +2203,14 @@ function triggerAI(){
                 var _aiVis=m.ai_visible!==undefined?m.ai_visible:true;
                 if(_aiVis){
                     var _infoText=m.text;
+                    // 翻译通知：用 _aiText 字段传给AI（UI token不直接给AI看）
+                    if(_infoText.indexOf('[TRANS_NOTICE::')===0){
+                        if(m._aiText){
+                            apiMessages.push({role:'user',content:m._aiText});
+                            apiMessages.push({role:'assistant',content:'Understood. I will comply with the bilingual format requirement.'});
+                        }
+                        return;
+                    }
                     // 过滤无意义的系统通知
                     if(_infoText==='♪♫'||_infoText==='♪'||_infoText.indexOf('已领取')!==-1||_infoText.indexOf('将备注修改')!==-1||_infoText.indexOf('旁白模式')!==-1)return;
                     // 一起看：邀请卡片
@@ -3454,9 +3520,22 @@ function showNotifCtxMenu(notifRow){
     // 查找匹配的 info 消息索引
     function findMatchingInfoIdx(){
         var msgs=window._caConversations[currentEntId]||[];
+        // 优先用 data-msg-idx 精确定位（最可靠）
+        var msgIdxAttr=notifRow.getAttribute('data-msg-idx');
+        if(msgIdxAttr!==null&&msgIdxAttr!==''){
+            var directIdx=parseInt(msgIdxAttr,10);
+            if(!isNaN(directIdx)&&directIdx>=0&&directIdx<msgs.length&&msgs[directIdx].role==='info'){
+                return directIdx;
+            }
+        }
+        // fallback：内容匹配
+        var isTransNotif=notifRow.classList.contains('cda-trans-notif-row');
         for(var i=msgs.length-1;i>=0;i--){
             if(msgs[i].role!=='info')continue;
             var mText=msgs[i].text||'';
+            if(isTransNotif&&mText.indexOf('[TRANS_NOTICE::')===0){
+                return i;
+            }
             var dcMatch=mText.match(/^::(NARRATOR_INJECT|ACTION_INJECT|CORRECTION_OVERRIDE)::\{[^}]*\}::\s*([\s\S]*)$/);
             if(dcMatch){
                 var dcTypeMap={'NARRATOR_INJECT':'旁白','ACTION_INJECT':'动作','CORRECTION_OVERRIDE':'纠错'};
@@ -3520,7 +3599,12 @@ function showNotifCtxMenu(notifRow){
         while(keepUntil<msgs.length&&msgs[keepUntil].role==='info'){
             keepUntil++;
         }
-        window._caConversations[currentEntId]=msgs.slice(0,keepUntil);
+        // 提取 sticky 消息（翻译通知等），redo 后重新追加
+        var _rdStickyMsgs=[];
+        for(var _rdsi=keepUntil;_rdsi<msgs.length;_rdsi++){
+            if(msgs[_rdsi]&&msgs[_rdsi]._sticky)_rdStickyMsgs.push(msgs[_rdsi]);
+        }
+        window._caConversations[currentEntId]=msgs.slice(0,keepUntil).concat(_rdStickyMsgs);
         if(typeof ChatDB!=='undefined'&&ChatDB.saveConversation){
             ChatDB.saveConversation(currentEntId,window._caConversations[currentEntId]);
         }
@@ -3535,8 +3619,13 @@ function showNotifCtxMenu(notifRow){
         var idx=findMatchingInfoIdx();
         if(idx<0){hideCtxMenu();return;}
         var msgs=window._caConversations[currentEntId]||[];
-        // Cut：保留到这条 info 消息（含），删除之后所有
-        window._caConversations[currentEntId]=msgs.slice(0,idx+1);
+        //提取 sticky 消息（翻译通知等），cut 后重新追加
+        var _cutStickyMsgs=[];
+        for(var _csi=idx+1;_csi<msgs.length;_csi++){
+            if(msgs[_csi]&&msgs[_csi]._sticky)_cutStickyMsgs.push(msgs[_csi]);
+        }
+        // Cut：保留到这条 info 消息（含），删除之后所有，但保留 sticky
+        window._caConversations[currentEntId]=msgs.slice(0,idx+1).concat(_cutStickyMsgs);
         if(typeof ChatDB!=='undefined'&&ChatDB.saveConversation){
             ChatDB.saveConversation(currentEntId,window._caConversations[currentEntId]);
         }
@@ -3901,6 +3990,12 @@ function handleCtxAction(action,bubble,isSent,bubbleIdx){
                 // 判断是否需要截断消息内部
                 var needTruncateInside=(!isSent)&&(validLines.length>1)&&(bubbleOffset<validLines.length-1);
 
+                // 提取 sticky 消息（翻译通知等），rollback 后重新追加到末尾
+                var _rbStickyMsgs=[];
+                for(var _rsi=realMsgIdx+1;_rsi<msgs.length;_rsi++){
+                    if(msgs[_rsi]&&msgs[_rsi]._sticky)_rbStickyMsgs.push(msgs[_rsi]);
+                }
+
                 if(needTruncateInside){
                     // 截断到被点击气泡所在行（含该行），删除之后的行
                     var keepLineIdx=validLines[bubbleOffset]?validLines[bubbleOffset].lineIdx:allLines.length-1;
@@ -3915,11 +4010,11 @@ function handleCtxAction(action,bubble,isSent,bubbleIdx){
                     var sysPrefixMatch=targetText.match(/^(\[SYS_TIME:[^\]]*\]\s*)/i);
                     if(sysPrefixMatch)sysPrefix=sysPrefixMatch[1];
                     msgs[realMsgIdx].text=sysPrefix+truncatedText;
-                    // 删除该消息之后的所有消息
-                    window._caConversations[currentEntId]=msgs.slice(0,realMsgIdx+1);
+                    // 删除该消息之后的所有消息，但保留 sticky
+                    window._caConversations[currentEntId]=msgs.slice(0,realMsgIdx+1).concat(_rbStickyMsgs);
                 }else{
-                    // 保留到选中气泡所在的整条消息（含），删除之后所有消息
-                    window._caConversations[currentEntId]=msgs.slice(0,realMsgIdx+1);
+                    // 保留到选中气泡所在的整条消息（含），删除之后所有消息，但保留 sticky
+                    window._caConversations[currentEntId]=msgs.slice(0,realMsgIdx+1).concat(_rbStickyMsgs);
                 }
 
                 // 回溯后，检查保留的消息中已收款的转账卡片，恢复为 pending
@@ -4146,6 +4241,39 @@ function showTransferModal(ent){
     var amountInput=document.getElementById('cdaTfAmount');
     if(amountInput)amountInput.focus();
 }
+
+//翻译开关通知：在聊天室插入一条不可被redo/rollback 误删的系统通知
+// style: 'on' | 'off'，lang: 翻译语言名称
+function addTransNotice(style,lang){
+    if(!currentEntId)return;
+    if(!window._caConversations)window._caConversations={};
+    if(!window._caConversations[currentEntId])window._caConversations[currentEntId]=[];
+    var token='[TRANS_NOTICE::'+style+(lang?'::'+lang:'')+']';
+    // ai_visible:true，让AI看到格式提醒
+    var aiText='';
+    if(style==='on'){
+        var _tl=lang||'Chinese';
+        aiText='[⚠ BILINGUAL MODE ACTIVATED — MANDATORY FORMAT REMINDER]\n'+'From this point forward, you MUST use the bilingual format for EVERY reply.\n'+
+            'Format: Write your reply naturally first, then add "|||TRANS|||" followed by the '+_tl+' translation.\n'+
+            'Example:想你了|||TRANS|||I miss you\n'+
+            'If your reply has multiple lines (split by newline), EACH line must contain "|||TRANS|||".\n'+
+            'DO NOT skip the translation. DO NOT forget the delimiter. This is non-negotiable.';
+    }else{
+        aiText='[⚠ BILINGUAL MODE DEACTIVATED]\n'+
+            'Stop using the "|||TRANS|||" delimiter. Reply in a single language only from now on.';
+    }
+    var msg={role:'info',text:token,_aiText:aiText,ai_visible:true,_sticky:true,time:dateTimeNow()};
+    window._caConversations[currentEntId].push(msg);
+    if(typeof ChatDB!=='undefined'&&ChatDB.saveConversation){
+        ChatDB.saveConversation(currentEntId,window._caConversations[currentEntId]);
+    }
+    renderMessagesNoAnim();
+    var area=document.getElementById('cdaMsgArea');
+    if(area)smoothScrollToBottom(area);
+}
+
+// 暴露给设置模块调用
+window.cdaAddTransNotice=function(style,lang){addTransNotice(style,lang);};
 
 function showToast(msg){
     var t=document.createElement('div');
