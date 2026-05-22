@@ -2131,10 +2131,18 @@ function triggerAI(){
     }
 
     // 用户面具（与旧系统共用 ca-user-masks）
+    // 优先查绑定到当前联系人的面具，没有绑定则用全局激活的
     var maskPrompt='';
     var masks;
     try{masks=JSON.parse(localStorage.getItem('ca-user-masks')||'[]');}catch(e){masks=[];}
-    var activeMask=masks.find(function(m){return m.active;});
+    var activeMask=null;
+    // 先找绑定了当前联系人的面具
+    for(var _mi=0;_mi<masks.length;_mi++){
+        var _bEnts=masks[_mi].boundEntities||[];
+        if(_bEnts.indexOf(currentEntId)>=0){activeMask=masks[_mi];break;}
+    }
+    // 没找到绑定的，用全局激活的
+    if(!activeMask)activeMask=masks.find(function(m){return m.active;});
     if(activeMask&&activeMask.name){
         maskPrompt='\nTHE USER\'S IDENTITY:\n- Name: '+activeMask.name+'\n- Persona: '+(activeMask.bio||'')+'\n';
     }
