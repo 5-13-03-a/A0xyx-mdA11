@@ -1271,92 +1271,15 @@ function doRenderMessages(area,ent){
     console.log('[CDA Debug] area childNodes after render:', area.childNodes.length);
 }
 
-function _injectBubbleTimestamps(area){
-    if(!area)return;
-    area.querySelectorAll('.cda-bubble-ts').forEach(function(el){el.remove();});
-    var cfg;try{cfg=JSON.parse(localStorage.getItem('ca-bubble-ts-config')||'{}');}catch(e){cfg={};}
-    if(!cfg.on)return;
-    var mode=cfg.mode||'last';
-    var fmt=cfg.format||'HH:mm';
-    var target=cfg.target||'both';
-    var pos=cfg.pos||'below';
-
-    var rows=area.querySelectorAll('.cda-msg-row');
-    rows.forEach(function(row){
-        var isSent=row.classList.contains('sent');
-        var isRecv=row.classList.contains('received');
-        if(target==='sent'&&!isSent)return;
-        if(target==='recv'&&!isRecv)return;
-
-        var shouldShow=false;
-        if(mode==='all')shouldShow=true;
-        else if(mode==='last')shouldShow=row.classList.contains('has-tail');
-        else if(mode==='first')shouldShow=row.classList.contains('group-start');
-        if(!shouldShow)return;
-
-        var msgIdx=row.getAttribute('data-msg-idx');
-        var msgs=window._caConversations&&window._caConversations[currentEntId]?window._caConversations[currentEntId]:[];
-        var timeStr='';
-        if(msgIdx!==null){
-            var idx=parseInt(msgIdx,10);
-            if(msgs[idx]&&msgs[idx].time){
-                var parts=msgs[idx].time.split(' ');
-                var timePart=parts[1]||'';
-                if(timePart){
-                    var hp=timePart.split(':');
-                    var h=parseInt(hp[0],10)||0;
-                    var m=hp[1]||'00';
-                    var s=hp[2]||'00';
-                    var h12=h%12||12;
-                    var ampm=h>=12?'下午':'上午';
-                    timeStr=fmt
-                        .replace('HH',String(h).padStart(2,'0'))
-                        .replace('hh',String(h12).padStart(2,'0'))
-                        .replace('mm',m)
-                        .replace('ss',s)
-                        .replace('a',ampm);
-                }
-            }
-        }
-        if(!timeStr)return;
-
-        var tsEl=document.createElement('span');
-        tsEl.className='cda-bubble-ts';
-        tsEl.textContent=timeStr;
-
-        var bubble=row.querySelector('.cda-bubble');
-        var wrap=row.querySelector('.cda-bubble-wrap');
-        if(!wrap)return;
-
-        if(pos==='inline-right'&&bubble){
-            bubble.style.position='relative';
-            tsEl.style.position='absolute';
-            bubble.appendChild(tsEl);
-        }else if(pos==='inline-left'&&bubble){
-            bubble.style.position='relative';
-            tsEl.style.position='absolute';
-            bubble.appendChild(tsEl);
-        }else if(pos==='right'){
-            wrap.style.display='flex';
-            wrap.style.alignItems='flex-end';
-            wrap.style.gap='4px';
-            wrap.appendChild(tsEl);
-        }else if(pos==='left'){
-            wrap.style.display='flex';
-            wrap.style.alignItems='flex-end';
-            wrap.style.gap='4px';
-            wrap.insertBefore(tsEl,wrap.firstChild);
-        }else{
-            // below (default)
-            wrap.appendChild(tsEl);
-        }
-    });
-}
 
 function _injectBubbleLabels(area){
     if(!area||!currentEntId)return;
     area.querySelectorAll('.cda-bubble-lbl').forEach(function(el){el.remove();});
-    _injectBubbleTimestamps(area);
+    area.querySelectorAll('.cda-bubble-wrap').forEach(function(w){
+        if(w.getAttribute('style')&&w.style.display==='flex'){
+            w.style.display='';w.style.alignItems='';w.style.gap='';
+        }
+    });
     var labels;
     try{labels=JSON.parse(localStorage.getItem('ca-bubble-labels-'+currentEntId)||localStorage.getItem('ca-bubble-labels')||'[]');}catch(e){labels=[];}
     if(labels.length===0)return;
@@ -1438,10 +1361,12 @@ function _injectBubbleLabels(area){
                 wrap.insertBefore(el,wrap.firstChild);
             }else if(pos==='right'){
                 wrap.style.display='flex';wrap.style.alignItems='flex-end';wrap.style.gap='0px';
+                wrap.setAttribute('data-lbl-flex','1');
                 el.style.cssText=baseStyle+'flex-shrink:0;position:relative;bottom:'+(-offY)+'px;margin-left:'+(4+offX)+'px;';
                 wrap.appendChild(el);
             }else if(pos==='left'){
                 wrap.style.display='flex';wrap.style.alignItems='flex-end';wrap.style.gap='0px';
+                wrap.setAttribute('data-lbl-flex','1');
                 el.style.cssText=baseStyle+'flex-shrink:0;position:relative;bottom:'+(-offY)+'px;margin-right:'+(4+offX)+'px;';
                 wrap.insertBefore(el,wrap.firstChild);
             }else if(pos==='inline-right'&&bubble){
@@ -1805,8 +1730,9 @@ function appendUserBubbles(displayText,rawText){
         area.appendChild(row);
         animateBubbleIn(row,animClass);
     updateTailClasses(area);
-    _injectBubbleLabels(area);
+    setTimeout(function(){_injectBubbleLabels(area);},60);
     smoothScrollToBottom(area);
+    return;
 }
     // 转账
     if(text.indexOf('[TRANSFER_CARD::')===0){
@@ -1903,7 +1829,7 @@ function appendAiBubbles(fullText,callback){
 
     var idx=0;
     function showNext(){
-        if(idx>=segments.length){updateTailClasses(area);_injectBubbleLabels(area);if(callback)callback();return;}
+        if(idx>=segments.length){updateTailClasses(area);setTimeout(function(){_injectBubbleLabels(area);},60);if(callback)callback();return;}
         var seg=segments[idx];
         idx++;
 
@@ -1964,7 +1890,6 @@ function appendAiBubbles(fullText,callback){
                 }else if(transStyle==='flip'){
                     row.innerHTML=avHtml+'<div class="cda-bubble-wrap"><div class="cda-bubble cda-tr-s2-wrap" onclick="this.classList.toggle(\'cda-tr-s2-active\')"><div class="cda-tr-s2-card"><div class="cda-tr-s2-front">'+escapeHtml(mainText)+'</div><div class="cda-tr-s2-back">'+tr+'</div></div></div></div>';
                     area.appendChild(row);
-                    updateTailClasses(area);
                     animateBubbleIn(row,animClass);
                     smoothScrollToBottom(area);
                     var delay2=Math.round(getBaseDelay(seg.text.length)*getSpeedMul());
@@ -1973,7 +1898,6 @@ function appendAiBubbles(fullText,callback){
                 }else if(transStyle==='ghost'){
                     row.innerHTML=avHtml+'<div class="cda-bubble-wrap" onclick="this.classList.toggle(\'cda-tr-s3-active\')"><div class="cda-bubble">'+escapeHtml(mainText)+'</div><div class="cda-tr-s3-ghost">'+tr+'</div></div>';
                     area.appendChild(row);
-                    updateTailClasses(area);
                     animateBubbleIn(row,animClass);
                     smoothScrollToBottom(area);
                     var delay3=Math.round(getBaseDelay(seg.text.length)*getSpeedMul());
@@ -1988,7 +1912,6 @@ function appendAiBubbles(fullText,callback){
                 }else if(transStyle==='ribbon'){
                     row.innerHTML=avHtml+'<div class="cda-bubble-wrap" onclick="this.classList.toggle(\'cda-tr-s4-active\')"><div class="cda-bubble cda-tr-s4-ribbon"><div class="cda-tr-s4-main">'+escapeHtml(mainText)+'</div><div class="cda-tr-s4-peel">'+tr+'</div></div></div>';
                     area.appendChild(row);
-                    updateTailClasses(area);
                     animateBubbleIn(row,animClass);
                     smoothScrollToBottom(area);
                     var delay4=Math.round(getBaseDelay(seg.text.length)*getSpeedMul());
@@ -1997,7 +1920,6 @@ function appendAiBubbles(fullText,callback){
                 }else if(transStyle==='curtain'){
                     row.innerHTML=avHtml+'<div class="cda-bubble-wrap" onclick="this.classList.toggle(\'cda-tr-s6-active\')"><div class="cda-bubble cda-tr-s6-bubble"><span>'+escapeHtml(mainText)+'</span><div class="cda-tr-s6-curtain">'+tr+'</div></div></div>';
                     area.appendChild(row);
-                    updateTailClasses(area);
                     animateBubbleIn(row,animClass);
                     smoothScrollToBottom(area);
                     var delay5=Math.round(getBaseDelay(seg.text.length)*getSpeedMul());
@@ -2006,7 +1928,6 @@ function appendAiBubbles(fullText,callback){
                 }else if(transStyle==='mirror'){
                     row.innerHTML=avHtml+'<div class="cda-bubble-wrap cda-tr-s9" onclick="this.classList.toggle(\'cda-tr-s9-active\')"><div class="cda-bubble">'+escapeHtml(mainText)+'</div><div class="cda-tr-s9-ref">'+tr+'</div></div>';
                     area.appendChild(row);
-                    updateTailClasses(area);
                     animateBubbleIn(row,animClass);
                     smoothScrollToBottom(area);
                     var delay6=Math.round(getBaseDelay(seg.text.length)*getSpeedMul());
@@ -2015,7 +1936,6 @@ function appendAiBubbles(fullText,callback){
                 }else if(transStyle==='stamp'){
                     row.innerHTML=avHtml+'<div class="cda-bubble-wrap" onclick="this.classList.toggle(\'cda-tr-s10-active\')"><div class="cda-bubble cda-tr-s10-bubble">'+escapeHtml(mainText)+'<div class="cda-tr-s10-stamp">'+tr+'</div></div></div>';
                     area.appendChild(row);
-                    updateTailClasses(area);
                     animateBubbleIn(row,animClass);
                     smoothScrollToBottom(area);
                     var delay7=Math.round(getBaseDelay(seg.text.length)*getSpeedMul());
@@ -2091,7 +2011,6 @@ function appendAiBubbles(fullText,callback){
                     row.innerHTML=avHtml+tcHtml;
                     row.classList.add('cda-tf-row');
                     area.appendChild(row);
-                    updateTailClasses(area);
                     animateBubbleIn(row,animClass);
                     smoothScrollToBottom(area);
 
@@ -2161,7 +2080,6 @@ function appendAiBubbles(fullText,callback){
 
             row.innerHTML=avHtml+'<div class="cda-bubble-wrap"><div class="cda-bubble'+(transText&&transStyle!=='off'?' cda-tr-has':'')+'">'+escapeHtml(mainText)+transHtml+'</div></div>';
             area.appendChild(row);
-            updateTailClasses(area);
             animateBubbleIn(row,animClass);
             smoothScrollToBottom(area);
 
@@ -2189,7 +2107,8 @@ function animateBubbleIn(row,keyframe){
     target.style.opacity='0';
     target.style.transform='translateY(12px) scale(0.97)';
     setTimeout(function(){
-        target.style.cssText='';
+        target.style.opacity='';
+        target.style.transform='';
         target.style.animation=keyframe+' 0.4s cubic-bezier(0.16,1,0.3,1) forwards';
     },30);
 }
