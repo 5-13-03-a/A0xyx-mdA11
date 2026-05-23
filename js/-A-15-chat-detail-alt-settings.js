@@ -2022,47 +2022,6 @@ function bindSettingsEvents(entId){
         function loadLabels(){try{return JSON.parse(localStorage.getItem(storageKey)||'[]');}catch(e){return[];}}
         function saveLabels(arr){localStorage.setItem(storageKey,JSON.stringify(arr));window.dispatchEvent(new CustomEvent('cda-settings-changed'));updateLabelPreview(arr);}
 
-        function updateLabelPreview(labels){
-            var recvWrap=document.querySelector('.cs-lbl-prev-wrap-recv');
-            var sentWrap=document.querySelector('.cs-lbl-prev-wrap-sent');
-            if(!recvWrap||!sentWrap)return;
-            // 清除旧预览标签
-            recvWrap.querySelectorAll('.cs-lbl-prev-tag').forEach(function(el){el.remove();});
-            sentWrap.querySelectorAll('.cs-lbl-prev-tag').forEach(function(el){el.remove();});
-            labels.forEach(function(lb){
-                if(!lb.on)return;
-                var text=lb.type==='time'?'14:30':(lb.text||'label');
-                var size=lb.size||9;
-                var color=lb.color||'rgba(26,26,31,0.3)';
-                var offX=lb.offX||0;
-                var offY=lb.offY||0;
-                var pos=lb.pos||'below';
-                var target=lb.target||'both';
-                function makeTag(wrap,side){
-                    var tag=document.createElement('span');
-                    tag.className='cs-lbl-prev-tag';
-                    tag.textContent=text;
-                    var baseStyle='font-size:'+size+'px;color:'+color+';white-space:nowrap;pointer-events:none;line-height:1.2;display:block;position:absolute;';
-                    if(pos==='below'){
-                        tag.style.cssText=baseStyle+'bottom:'+(-size-4-offY)+'px;'+(side==='sent'?'right':'left')+':'+(2+offX)+'px;';
-                    }else if(pos==='above'){
-                        tag.style.cssText=baseStyle+'top:'+(-size-4-offY)+'px;'+(side==='sent'?'right':'left')+':'+(2+offX)+'px;';
-                    }else if(pos==='right'){
-                        tag.style.cssText=baseStyle+'right:'+(-40-offX)+'px;bottom:'+(2+offY)+'px;';
-                    }else if(pos==='left'){
-                        tag.style.cssText=baseStyle+'left:'+(-40+offX)+'px;bottom:'+(2+offY)+'px;';
-                    }else if(pos==='inline-right'){
-                        tag.style.cssText=baseStyle+'bottom:'+(2+offY)+'px;right:'+(6-offX)+'px;';
-                    }else if(pos==='inline-left'){
-                        tag.style.cssText=baseStyle+'bottom:'+(2+offY)+'px;left:'+(6+offX)+'px;';
-                    }
-                    wrap.appendChild(tag);
-                }
-                if(target==='both'||target==='recv')makeTag(recvWrap,'recv');
-                if(target==='both'||target==='sent')makeTag(sentWrap,'sent');
-            });
-        }
-
                 function updateLabelPreview(labels){
             var recvWrap=document.querySelector('.cs-lbl-prev-wrap-recv');
             var sentWrap=document.querySelector('.cs-lbl-prev-wrap-sent');
@@ -2168,9 +2127,9 @@ function bindSettingsEvents(entId){
                 // 字号
                 html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:8px;color:rgba(26,26,31,0.3);flex-shrink:0;width:28px;">字号</span><input type="range" data-lbl-size="'+i+'" min="6" max="14" step="1" value="'+(lb.size||9)+'" style="flex:1;accent-color:#1a1a1f;"><span data-lbl-size-val="'+i+'" style="font-size:9px;font-weight:700;color:#1a1a1f;min-width:20px;text-align:right;">'+(lb.size||9)+'</span></div>';
                 // X
-                html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:8px;color:rgba(26,26,31,0.3);flex-shrink:0;width:28px;">X</span><input type="range" data-lbl-offx="'+i+'" min="-20" max="20" step="1" value="'+(lb.offX||0)+'" style="flex:1;accent-color:#1a1a1f;"><span data-lbl-offx-val="'+i+'" style="font-size:9px;font-weight:700;color:#1a1a1f;min-width:20px;text-align:right;">'+(lb.offX||0)+'</span></div>';
+                html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:8px;color:rgba(26,26,31,0.3);flex-shrink:0;width:28px;">X</span><input type="range" data-lbl-offx="'+i+'" min="-40" max="40" step="1" value="'+(lb.offX||0)+'" style="flex:1;accent-color:#1a1a1f;"><span data-lbl-offx-val="'+i+'" style="font-size:9px;font-weight:700;color:#1a1a1f;min-width:20px;text-align:right;">'+(lb.offX||0)+'</span></div>';
                 // Y
-                html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:8px;color:rgba(26,26,31,0.3);flex-shrink:0;width:28px;">Y</span><input type="range" data-lbl-offy="'+i+'" min="-20" max="20" step="1" value="'+(lb.offY||0)+'" style="flex:1;accent-color:#1a1a1f;"><span data-lbl-offy-val="'+i+'" style="font-size:9px;font-weight:700;color:#1a1a1f;min-width:20px;text-align:right;">'+(lb.offY||0)+'</span></div>';
+                html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:8px;color:rgba(26,26,31,0.3);flex-shrink:0;width:28px;">Y</span><input type="range" data-lbl-offy="'+i+'" min="-40" max="40" step="1" value="'+(lb.offY||0)+'" style="flex:1;accent-color:#1a1a1f;"><span data-lbl-offy-val="'+i+'" style="font-size:9px;font-weight:700;color:#1a1a1f;min-width:20px;text-align:right;">'+(lb.offY||0)+'</span></div>';
                 // 颜色
                 html+='<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:8px;color:rgba(26,26,31,0.3);flex-shrink:0;width:28px;">色</span><input type="color" data-lbl-color="'+i+'" value="'+(lb.colorHex||'#999999')+'" style="width:28px;height:28px;border:none;border-radius:6px;cursor:pointer;background:transparent;padding:0;"></div>';
                 html+='</div></div>';// 关闭body+padding
@@ -2316,127 +2275,6 @@ function bindSettingsEvents(entId){
                 });
             });
             // Y
-            list.querySelectorAll('[data-lbl-offy]').forEach(function(sl){
-                sl.addEventListener('input',function(){
-                    var idx=parseInt(sl.dataset.lblOffy,10);
-                    labels[idx].offY=parseInt(sl.value,10);
-                    var v=list.querySelector('[data-lbl-offy-val="'+idx+'"]');
-                    if(v)v.textContent=sl.value;
-                    saveLabels(labels);
-                });
-            });
-            // Color
-            list.querySelectorAll('[data-lbl-color]').forEach(function(inp){
-                inp.addEventListener('input',function(){
-                    var idx=parseInt(inp.dataset.lblColor,10);
-                    var hex=inp.value;
-                    var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-                    labels[idx].color='rgba('+r+','+g+','+b+',0.5)';
-                    labels[idx].colorHex=hex;
-                    saveLabels(labels);
-                });
-            });
-        
-            // Delete
-            list.querySelectorAll('[data-lbl-del]').forEach(function(btn){
-                btn.addEventListener('click',function(e){
-                    e.stopPropagation();
-                    var idx=parseInt(btn.dataset.lblDel,10);
-                    labels.splice(idx,1);
-                    saveLabels(labels);
-                    renderLabelList();
-                });
-            });
-            // Type caps
-            list.querySelectorAll('[data-lbl-type]').forEach(function(cap){
-                cap.addEventListener('click',function(e){
-                    e.stopPropagation();
-                    var idx=parseInt(cap.dataset.lblIdx,10);
-                    var row=cap.parentElement;
-                    row.querySelectorAll('.cs-cap').forEach(function(c){c.classList.remove('active');});
-                    cap.classList.add('active');
-                    labels[idx].type=cap.dataset.lblType;
-                    saveLabels(labels);
-                    // 联动显隐
-                    var fw=list.querySelector('[data-lbl-fixed-wrap="'+idx+'"]');
-                    var tw=list.querySelector('[data-lbl-time-wrap="'+idx+'"]');
-                    if(labels[idx].type==='time'){if(fw)fw.style.display='none';if(tw)tw.style.display='';}
-                    else{if(fw)fw.style.display='';if(tw)tw.style.display='none';}
-                });
-            });
-            // Target caps
-            list.querySelectorAll('[data-lbl-target]').forEach(function(cap){
-                cap.addEventListener('click',function(e){
-                    e.stopPropagation();
-                    var idx=parseInt(cap.dataset.lblIdx,10);
-                    var row=cap.parentElement;
-                    row.querySelectorAll('[data-lbl-target]').forEach(function(c){c.classList.remove('active');});
-                    cap.classList.add('active');
-                    labels[idx].target=cap.dataset.lblTarget;
-                    saveLabels(labels);
-                });
-            });
-            // Mode caps
-            list.querySelectorAll('[data-lbl-mode]').forEach(function(cap){
-                cap.addEventListener('click',function(e){
-                    e.stopPropagation();
-                    var idx=parseInt(cap.dataset.lblIdx,10);
-                    var row=cap.parentElement;
-                    row.querySelectorAll('[data-lbl-mode]').forEach(function(c){c.classList.remove('active');});
-                    cap.classList.add('active');
-                    labels[idx].mode=cap.dataset.lblMode;
-                    saveLabels(labels);
-                });
-            });
-            // Position caps
-            list.querySelectorAll('[data-lbl-pos]').forEach(function(cap){
-                cap.addEventListener('click',function(e){
-                    e.stopPropagation();
-                    var idx=parseInt(cap.dataset.lblIdx,10);
-                    var row=cap.parentElement;
-                    row.querySelectorAll('[data-lbl-pos]').forEach(function(c){c.classList.remove('active');});
-                    cap.classList.add('active');
-                    labels[idx].pos=cap.dataset.lblPos;
-                    saveLabels(labels);
-                });
-            });
-            // Text input
-            list.querySelectorAll('[data-lbl-text]').forEach(function(inp){
-                inp.addEventListener('input',function(){
-                    var idx=parseInt(inp.dataset.lblText,10);
-                    labels[idx].text=inp.value;
-                    saveLabels(labels);
-                });
-            });
-            // Format select
-            list.querySelectorAll('[data-lbl-fmt]').forEach(function(sel){
-                sel.addEventListener('change',function(){
-                    var idx=parseInt(sel.dataset.lblFmt,10);
-                    labels[idx].format=sel.value;
-                    saveLabels(labels);
-                });
-            });
-            // Size slider
-            list.querySelectorAll('[data-lbl-size]').forEach(function(sl){
-                sl.addEventListener('input',function(){
-                    var idx=parseInt(sl.dataset.lblSize,10);
-                    labels[idx].size=parseInt(sl.value,10);
-                    var v=list.querySelector('[data-lbl-size-val="'+idx+'"]');
-                    if(v)v.textContent=sl.value;
-                    saveLabels(labels);
-                });
-            });
-            // X slider
-            list.querySelectorAll('[data-lbl-offx]').forEach(function(sl){
-                sl.addEventListener('input',function(){
-                    var idx=parseInt(sl.dataset.lblOffx,10);
-                    labels[idx].offX=parseInt(sl.value,10);
-                    var v=list.querySelector('[data-lbl-offx-val="'+idx+'"]');
-                    if(v)v.textContent=sl.value;
-                    saveLabels(labels);
-                });
-            });
-            // Y slider
             list.querySelectorAll('[data-lbl-offy]').forEach(function(sl){
                 sl.addEventListener('input',function(){
                     var idx=parseInt(sl.dataset.lblOffy,10);

@@ -4621,6 +4621,7 @@ function closeDetailAlt(){
 // 监听设置变更，实时刷新气泡
 window.addEventListener('cda-settings-changed',function(){
     if(currentEntId){
+        setTimeout(function(){
         // 先重新注入字体样式，再渲染气泡
         (function(){
             var styleId='cda-bubble-font-style';
@@ -4648,6 +4649,7 @@ window.addEventListener('cda-settings-changed',function(){
             if(css){var s=document.createElement('style');s.id=styleId;s.textContent=css;document.head.appendChild(s);}
         })();
         renderMessagesNoAnim();
+        },50);
     }
 });
 
